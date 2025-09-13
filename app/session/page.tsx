@@ -6,6 +6,11 @@ import ChatWindow from '@/components/ChatWindow';
 import ArtifactTabs from '@/components/ArtifactTabs';
 import ExportButton from '@/components/ExportButton';
 import { ConversationMessage, Artifact } from '@/lib/orchestrator';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, AlertTriangle, Home, Building2, Users, Target, Clock, DollarSign } from 'lucide-react';
 
 interface SessionData {
   conversation: ConversationMessage[];
@@ -85,11 +90,11 @@ function SessionContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Session</h2>
-          <p className="text-gray-600">Preparing your startup planning session...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Loading Session</h2>
+          <p className="text-muted-foreground">Preparing your startup planning session...</p>
         </div>
       </div>
     );
@@ -97,50 +102,63 @@ function SessionContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.href = '/'}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Return Home
-          </button>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <CardTitle className="mb-2">Session Error</CardTitle>
+            <CardDescription className="mb-4">{error}</CardDescription>
+            <Button onClick={() => window.location.href = '/'} className="w-full">
+              <Home className="w-4 h-4 mr-2" />
+              Return Home
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!sessionData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Session Data</h2>
-          <p className="text-gray-600">Unable to load session information.</p>
+          <h2 className="text-xl font-semibold mb-2">No Session Data</h2>
+          <p className="text-muted-foreground">Unable to load session information.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border/50 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50">
+        <div className="container mx-auto px-6 py-6">
+          <div className="flex items-start justify-between mb-6">
             {/* Session Info */}
             <div className="flex-1">
-              <h1 className="text-xl font-semibold text-gray-900">
-                {sessionData.projectBrief.companyName} - Startup Planning Session
-              </h1>
-              <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-                <span>Industry: {sessionData.projectBrief.industry}</span>
-                <span>•</span>
-                <span>Timeline: {sessionData.projectBrief.timeline}</span>
-                <span>•</span>
-                <span>Budget: {sessionData.projectBrief.budget}</span>
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <h1 className="text-2xl font-bold">
+                  {sessionData.projectBrief.companyName}
+                </h1>
+              </div>
+              <p className="text-muted-foreground mb-4">AI-Generated Startup Planning Session</p>
+              
+              {/* Project Metadata */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="secondary" className="gap-1">
+                  <Building2 className="h-3 w-3" />
+                  {sessionData.projectBrief.industry}
+                </Badge>
+                <Badge variant="secondary" className="gap-1">
+                  <Clock className="h-3 w-3" />
+                  {sessionData.projectBrief.timeline}
+                </Badge>
+                <Badge variant="secondary" className="gap-1">
+                  <DollarSign className="h-3 w-3" />
+                  {sessionData.projectBrief.budget}
+                </Badge>
               </div>
             </div>
             
@@ -155,73 +173,77 @@ function SessionContent() {
             </div>
           </div>
           
-          {/* Brief Summary */}
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <h3 className="font-medium text-gray-900 mb-1">Problem Statement</h3>
-                <p className="text-gray-700 line-clamp-2">{sessionData.projectBrief.problemStatement}</p>
+          {/* Project Brief Summary */}
+          <Card className="bg-muted/30 border-border/50">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold">Problem Statement</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {sessionData.projectBrief.problemStatement}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold">Target Users</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {sessionData.projectBrief.targetUsers}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-gray-900 mb-1">Target Users</h3>
-                <p className="text-gray-700 line-clamp-2">{sessionData.projectBrief.targetUsers}</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-280px)]">
+      <div className="container mx-auto p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-[calc(100vh-400px)]">
           {/* Left: Chat Window */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="h-full">
-              <ChatWindow 
-                messages={sessionData.conversation}
-                className="h-full"
-              />
-            </div>
-          </div>
+          <Card className="border-border/50 shadow-lg overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">AI Agent Conversation</CardTitle>
+              <CardDescription>
+                Watch our AI agents collaborate to build your startup plan
+              </CardDescription>
+            </CardHeader>
+            <Separator />
+            <CardContent className="p-0">
+              <div className="h-[600px]">
+                <ChatWindow 
+                  messages={sessionData.conversation}
+                  className="h-full"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Right: Artifact Tabs */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="h-full">
-              <ArtifactTabs 
-                artifacts={sessionData.artifacts}
-                onArtifactUpdate={handleArtifactUpdate}
-                className="h-full"
-              />
-            </div>
-          </div>
+          <Card className="border-border/50 shadow-lg overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Your Startup Deliverables</CardTitle>
+              <CardDescription>
+                Review and edit your generated startup documents
+              </CardDescription>
+            </CardHeader>
+            <Separator />
+            <CardContent className="p-0">
+              <div className="h-[600px]">
+                <ArtifactTabs 
+                  artifacts={sessionData.artifacts}
+                  onArtifactUpdate={handleArtifactUpdate}
+                  className="h-full"
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      {/* Mobile Layout Adjustments */}
-      <style jsx>{`
-        @media (max-width: 1024px) {
-          .grid-cols-1.lg\\:grid-cols-2 {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-          }
-          
-          .h-\\[calc\\(100vh-280px\\)\\] {
-            height: auto;
-            min-height: 500px;
-          }
-          
-          .h-\\[calc\\(100vh-280px\\)\\] > div {
-            height: 500px;
-          }
-        }
-        
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   );
 }
@@ -229,11 +251,11 @@ function SessionContent() {
 export default function SessionPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Session</h2>
-          <p className="text-gray-600">Preparing your startup planning session...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Loading Session</h2>
+          <p className="text-muted-foreground">Preparing your startup planning session...</p>
         </div>
       </div>
     }>
