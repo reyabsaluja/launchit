@@ -5,6 +5,9 @@ import { Artifact } from "@/lib/orchestrator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Calendar, Zap, Megaphone, CheckCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github-dark.css';
 
 // Tab configuration with icons
 const tabConfig = [
@@ -88,15 +91,15 @@ function EditableArtifact({ artifact, tabInfo, onUpdate }: EditableArtifactProps
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-gray-200 p-4">
+      <div className="flex-shrink-0 border-b border-border p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <tabInfo.icon className="h-6 w-6 text-primary" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 {tabInfo.title}
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {tabInfo.description}
               </p>
             </div>
@@ -105,45 +108,19 @@ function EditableArtifact({ artifact, tabInfo, onUpdate }: EditableArtifactProps
           {!isEmpty && (
             <div className="flex items-center space-x-2">
               {hasChanges && (
-                <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
+                <span className="text-xs text-orange-300 bg-orange-950/50 px-2 py-1 rounded-full">
                   Unsaved changes
                 </span>
               )}
               
-              {isEditing ? (
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleSave}
-                    className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="px-3 py-1 text-xs bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Edit
-                </button>
-              )}
+              <Badge variant={artifact ? 'default' : 'secondary'}>
+                <CheckCircle className="w-3 h-3 mr-1" />
+                {artifact ? 'Complete' : 'In Progress'}
+              </Badge>
             </div>
           )}
         </div>
         
-        {artifact && (
-          <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-            <span>Created by {artifact.agentName}</span>
-            <span>•</span>
-            <span>{new Date(artifact.timestamp).toLocaleString()}</span>
-          </div>
-        )}
       </div>
 
       {/* Content */}
@@ -152,10 +129,10 @@ function EditableArtifact({ artifact, tabInfo, onUpdate }: EditableArtifactProps
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <tabInfo.icon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
+              <h4 className="text-lg font-medium text-foreground mb-2">
                 No {tabInfo.label} Yet
               </h4>
-              <p className="text-gray-600 max-w-sm">
+              <p className="text-muted-foreground max-w-sm">
                 {tabInfo.placeholder}
               </p>
             </div>
@@ -166,19 +143,75 @@ function EditableArtifact({ artifact, tabInfo, onUpdate }: EditableArtifactProps
               <textarea
                 value={content}
                 onChange={(e) => handleContentChange(e.target.value)}
-                className="w-full h-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                placeholder={`Edit ${tabInfo.title}...`}
+                className="w-full h-full p-4 border border-border rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground"
+                placeholder={tabInfo.placeholder}
               />
             ) : (
               <div className="h-full overflow-y-auto">
-                <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 p-4 bg-gray-50 rounded-lg border">
-                  {content}
-                </pre>
+                <div className="p-4 bg-muted/30 rounded-lg border border-border h-full">
+                  <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeHighlight]}
+                      components={{
+                        h1: ({ children }) => <h1 className="text-2xl font-bold text-foreground mb-4">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-xl font-semibold text-foreground mb-3">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-lg font-medium text-foreground mb-2">{children}</h3>,
+                        p: ({ children }) => <p className="text-foreground mb-3 leading-relaxed">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc pl-6 mb-3 text-foreground">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-6 mb-3 text-foreground">{children}</ol>,
+                        li: ({ children }) => <li className="mb-1">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        em: ({ children }) => <em className="italic text-foreground">{children}</em>,
+                        code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>,
+                        pre: ({ children }) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>,
+                        blockquote: ({ children }) => <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground mb-4">{children}</blockquote>,
+                      }}
+                    >
+                      {artifact?.content}
+                    </ReactMarkdown>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
+      
+      {/* Footer with timestamp and edit controls */}
+      {!isEmpty && (
+        <div className="flex-shrink-0 px-4 py-2 bg-muted/30 border-t border-border">
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-muted-foreground">
+              <span>Created by {artifact?.agentName} • {new Date(artifact?.timestamp || new Date()).toLocaleString()}</span>
+            </div>
+            <div className="flex space-x-2">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="px-3 py-1 bg-muted text-muted-foreground text-sm rounded-md hover:bg-muted/80 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-3 py-1 bg-muted text-muted-foreground text-sm rounded-md hover:bg-muted/80 transition-colors"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
