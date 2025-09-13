@@ -3,9 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ChatWindow from '@/components/ChatWindow';
+import AgenticChatWindow from '@/components/AgenticChatWindow';
 import ArtifactTabs from '@/components/ArtifactTabs';
 import ExportButton from '@/components/ExportButton';
 import { ConversationMessage, Artifact } from '@/lib/orchestrator';
+import { AgentMessage, Artifact as AgenticArtifact } from '@/lib/agenticOrchestrator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,22 +28,54 @@ interface SessionData {
   };
 }
 
+interface AgenticSessionData {
+  messages: AgentMessage[];
+  artifacts: Record<string, AgenticArtifact>;
+  summary: {
+    totalMessages: number;
+    totalArtifacts: number;
+    participatingAgents: string[];
+    duration: number;
+    phases: string[];
+  };
+  pmSummary: string;
+  projectBrief: {
+    companyName: string;
+    industry: string;
+    problemStatement: string;
+    targetUsers: string;
+    keyFeatureIdea?: string;
+    timeline: string;
+    budget: string;
+    additionalContext?: string;
+  };
+  isComplete: boolean;
+  currentPhase: string;
+}
+
 function SessionContent() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('id');
+  const sessionId = searchParams.get('sessionId') || searchParams.get('id');
+  const sessionType = searchParams.get('type') || 'legacy';
   
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [agenticSessionData, setAgenticSessionData] = useState<AgenticSessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAgentic, setIsAgentic] = useState(sessionType === 'agentic');
 
   useEffect(() => {
     if (sessionId) {
-      loadSessionData(sessionId);
+      if (isAgentic) {
+        loadAgenticSessionData(sessionId);
+      } else {
+        loadSessionData(sessionId);
+      }
     } else {
       setError('No session ID provided');
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, isAgentic]);
 
   const loadSessionData = async (id: string) => {
     try {
@@ -67,23 +101,62 @@ function SessionContent() {
     }
   };
 
-  const handleArtifactUpdate = (artifactId: string, newContent: string) => {
-    if (!sessionData) return;
-    
-    setSessionData(prev => {
-      if (!prev) return prev;
+  const loadAgenticSessionData = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/agentic-session?sessionId=${id}`);
       
-      return {
-        ...prev,
-        artifacts: {
-          ...prev.artifacts,
-          [artifactId]: {
-            ...prev.artifacts[artifactId],
-            content: newContent
+      if (!response.ok) {
+        throw new Error(`Failed to load agentic session: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setAgenticSessionData(result.data);
+      } else {
+        throw new Error(result.error || 'Failed to load agentic session data');
+      }
+    } catch (err) {
+      console.error('Error loading agentic session:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load agentic session');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArtifactUpdate = (artifactId: string, newContent: string) => {
+    if (isAgentic && agenticSessionData) {
+      setAgenticSessionData(prev => {
+        if (!prev) return prev;
+        
+        return {
+          ...prev,
+          artifacts: {
+            ...prev.artifacts,
+            [artifactId]: {
+              ...prev.artifacts[artifactId],
+              content: newContent
+            }
           }
-        }
-      };
-    });
+        };
+      });
+    } else if (!isAgentic && sessionData) {
+      setSessionData(prev => {
+        if (!prev) return prev;
+        
+        return {
+          ...prev,
+          artifacts: {
+            ...prev.artifacts,
+            [artifactId]: {
+              ...prev.artifacts[artifactId],
+              content: newContent
+            }
+          }
+        };
+      });
+    }
     
     console.log(`Updated artifact ${artifactId}`);
   };
@@ -118,7 +191,19 @@ function SessionContent() {
     );
   }
 
-  if (!sessionData) {
+  if (!sessionData && !agenticSessionData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">No Session Data</h2>
+          <p className="text-muted-foreground">Unable to load session information.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentData = isAgentic ? agenticSessionData : sessionData;
+  if (!currentData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -140,32 +225,44 @@ function SessionContent() {
               <div className="flex items-center gap-2 mb-2">
                 <Building2 className="h-5 w-5 text-primary" />
                 <h1 className="text-2xl font-bold">
-                  {sessionData.projectBrief.companyName}
+                  {currentData.projectBrief.companyName}
                 </h1>
+                {isAgentic && (
+                  <Badge variant="outline" className="ml-2">
+                    🤖 Agentic
+                  </Badge>
+                )}
               </div>
-              <p className="text-muted-foreground mb-4">AI-Generated Startup Planning Session</p>
+              <p className="text-muted-foreground mb-4">
+                {isAgentic ? 'Real-time AI Agent Collaboration' : 'AI-Generated Startup Planning Session'}
+              </p>
               
               {/* Project Metadata */}
               <div className="flex flex-wrap items-center gap-3">
                 <Badge variant="secondary" className="gap-1">
                   <Building2 className="h-3 w-3" />
-                  {sessionData.projectBrief.industry}
+                  {currentData.projectBrief.industry}
                 </Badge>
                 <Badge variant="secondary" className="gap-1">
                   <Clock className="h-3 w-3" />
-                  {sessionData.projectBrief.timeline}
+                  {currentData.projectBrief.timeline}
                 </Badge>
                 <Badge variant="secondary" className="gap-1">
                   <DollarSign className="h-3 w-3" />
-                  {sessionData.projectBrief.budget}
+                  {currentData.projectBrief.budget}
                 </Badge>
+                {isAgentic && agenticSessionData && (
+                  <Badge variant="secondary" className="gap-1">
+                    💬 {agenticSessionData.summary.totalMessages} messages
+                  </Badge>
+                )}
               </div>
             </div>
             
             {/* Export Button */}
             <div className="flex-shrink-0">
               <ExportButton 
-                artifacts={sessionData.artifacts}
+                artifacts={currentData.artifacts}
                 showStats={true}
                 variant="primary"
                 size="md"
@@ -183,7 +280,7 @@ function SessionContent() {
                     <h3 className="font-semibold">Problem Statement</h3>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {sessionData.projectBrief.problemStatement}
+                    {currentData.projectBrief.problemStatement}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -192,7 +289,7 @@ function SessionContent() {
                     <h3 className="font-semibold">Target Users</h3>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {sessionData.projectBrief.targetUsers}
+                    {currentData.projectBrief.targetUsers}
                   </p>
                 </div>
               </div>
@@ -207,18 +304,34 @@ function SessionContent() {
           {/* Left: Chat Window */}
           <Card className="border-border/50 shadow-lg overflow-hidden">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">AI Agent Conversation</CardTitle>
+              <CardTitle className="text-lg">
+                {isAgentic ? 'Real-time Agent Discussion' : 'AI Agent Conversation'}
+              </CardTitle>
               <CardDescription>
-                Watch our AI agents collaborate to build your startup plan
+                {isAgentic 
+                  ? 'Watch AI agents collaborate in real-time to build your startup plan'
+                  : 'Watch our AI agents collaborate to build your startup plan'
+                }
               </CardDescription>
             </CardHeader>
             <Separator />
             <CardContent className="p-0">
               <div className="h-[600px]">
-                <ChatWindow 
-                  messages={sessionData.conversation}
-                  className="h-full"
-                />
+                {isAgentic && agenticSessionData ? (
+                  <AgenticChatWindow 
+                    sessionId={sessionId!}
+                    messages={agenticSessionData.messages}
+                    currentPhase={agenticSessionData.currentPhase}
+                    isComplete={agenticSessionData.isComplete}
+                    isLoading={!agenticSessionData.isComplete}
+                    className="h-full"
+                  />
+                ) : sessionData ? (
+                  <ChatWindow 
+                    messages={sessionData.conversation}
+                    className="h-full"
+                  />
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -235,7 +348,7 @@ function SessionContent() {
             <CardContent className="p-0">
               <div className="h-[600px]">
                 <ArtifactTabs 
-                  artifacts={sessionData.artifacts}
+                  artifacts={currentData.artifacts}
                   onArtifactUpdate={handleArtifactUpdate}
                   className="h-full"
                 />

@@ -155,7 +155,7 @@ export default function OnboardingFlow() {
       };
 
       // Start the API call but don't wait for it
-      const responsePromise = fetch('/api/start-session', {
+      const responsePromise = fetch('/api/agentic-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,27 +163,29 @@ export default function OnboardingFlow() {
         body: JSON.stringify(apiPayload),
       });
 
-      // Generate a temporary session ID and show the conversation immediately
-      const tempSessionId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      setSessionId(tempSessionId);
-      setShowAgentConversation(true);
-      console.log('Showing agent conversation immediately with temp session ID:', tempSessionId);
+      // Don't show fake conversation - wait for real agentic session
+      console.log('Starting agentic session...');
 
-      // Handle the actual API response in the background
+      // Handle the actual API response and redirect immediately
       responsePromise.then(async (response) => {
         if (response.ok) {
           const result = await response.json();
           console.log('API Response:', result);
           if (result.success && result.sessionId) {
-            console.log('Real session ID received:', result.sessionId);
-            setRealSessionId(result.sessionId);
+            console.log('Agentic session ID received:', result.sessionId);
+            // Redirect directly to agentic session
+            router.push(`/session?sessionId=${result.sessionId}&type=agentic`);
           }
         } else {
           const errorData = await response.json();
           console.error('API Error:', errorData);
+          alert('Failed to start agentic session. Please try again.');
         }
+        setIsSubmitting(false);
       }).catch((error) => {
-        console.error('Error in background API call:', error);
+        console.error('Error in agentic session call:', error);
+        alert('Failed to start agentic session. Please try again.');
+        setIsSubmitting(false);
       });
 
     } catch (error) {
@@ -193,10 +195,7 @@ export default function OnboardingFlow() {
   };
 
   const handleAgentConversationComplete = () => {
-    const finalSessionId = realSessionId || sessionId;
-    if (finalSessionId) {
-      router.push(`/session?id=${finalSessionId}`);
-    }
+    // This is no longer used since we redirect directly
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -205,18 +204,7 @@ export default function OnboardingFlow() {
     }
   };
 
-  // Show agent conversation if session is started
-  console.log('Render check - showAgentConversation:', showAgentConversation, 'sessionId:', sessionId);
-  if (showAgentConversation && sessionId) {
-    console.log('Rendering AgentConversation component');
-    return (
-      <AgentConversation 
-        sessionId={sessionId} 
-        realSessionId={realSessionId}
-        onComplete={handleAgentConversationComplete}
-      />
-    );
-  }
+  // No longer show fake agent conversation - redirect directly to agentic session
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">

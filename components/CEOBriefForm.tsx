@@ -79,7 +79,7 @@ export default function CEOBriefForm({ onSubmit }: CEOBriefFormProps) {
       }
       
       // POST to API
-      const response = await fetch('/api/start-session', {
+      const response = await fetch('/api/agentic-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,19 +99,16 @@ export default function CEOBriefForm({ onSubmit }: CEOBriefFormProps) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const result = await response.json();
-      
-      if (result.success) {
-        // Navigate to session page with session ID
-        router.push(`/session?id=${result.sessionId}`);
+      const data = await response.json();
+      if (data.success && data.sessionId) {
+        // Navigate to session page with the agentic session ID
+        router.push(`/session?sessionId=${data.sessionId}&type=agentic`);
       } else {
-        throw new Error(result.error || 'Failed to start session');
+        alert(data.error || 'Failed to start agentic session');
       }
-      
     } catch (error) {
       console.error('Error submitting form:', error);
-      // You might want to show an error message to the user here
-      alert('Failed to start session. Please try again.');
+      alert('Failed to start agentic session. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -245,7 +242,7 @@ export default function CEOBriefForm({ onSubmit }: CEOBriefFormProps) {
                     Engineering Plan
                   </Badge>
                   <Badge variant="secondary" className="justify-center py-2 px-3">
-                    <Megaphone className="w-4 h-4 mr-2" />
+                    <Megaphone classNme="w-4 h-4 mr-2" />
                     Marketing Strategy
                   </Badge>
                 </div>

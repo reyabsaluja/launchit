@@ -1,0 +1,26 @@
+{
+  "conversationResult": {
+    "messages": [],
+    "artifacts": {},
+    "summary": {
+      "totalMessages": 0,
+      "totalArtifacts": 0,
+      "participatingAgents": [],
+      "duration": 0,
+      "phases": []
+    },
+    "pmSummary": ""
+  },
+  "projectBrief": {
+    "companyName": "My Startup",
+    "industry": "Technology",
+    "problemStatement": "recruiters unable to contact talent young talent\n",
+    "targetUsers": "university and college kids, early talent recruiters",
+    "keyFeatureIdea": "platform where students can showcase themselves to recruiters",
+    "timeline": "6 months",
+    "budget": "$50,000",
+    "additionalContext": "Key Feature: platform where students can showcase themselves to recruiters"
+  },
+  "isComplete": false,
+  "currentPhase": "initial_discussion"
+}
