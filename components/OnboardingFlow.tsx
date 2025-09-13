@@ -21,6 +21,7 @@ import {
   Megaphone
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import AgentConversation from "./AgentConversation";
 
 interface FormData {
   problemStatement: string;
@@ -80,6 +81,9 @@ export default function OnboardingFlow() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAgentConversation, setShowAgentConversation] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [realSessionId, setRealSessionId] = useState<string | null>(null);
   const router = useRouter();
 
   const currentStepData = steps.find(step => step.id === currentStep)!;
@@ -150,7 +154,8 @@ export default function OnboardingFlow() {
         additionalContext: `Key Feature: ${formData.keyFeature}`
       };
 
-      const response = await fetch('/api/start-session', {
+      // Start the API call but don't wait for it
+      const responsePromise = fetch('/api/start-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,21 +163,39 @@ export default function OnboardingFlow() {
         body: JSON.stringify(apiPayload),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.sessionId) {
-          router.push(`/session?id=${result.sessionId}`);
+      // Generate a temporary session ID and show the conversation immediately
+      const tempSessionId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setSessionId(tempSessionId);
+      setShowAgentConversation(true);
+      console.log('Showing agent conversation immediately with temp session ID:', tempSessionId);
+
+      // Handle the actual API response in the background
+      responsePromise.then(async (response) => {
+        if (response.ok) {
+          const result = await response.json();
+          console.log('API Response:', result);
+          if (result.success && result.sessionId) {
+            console.log('Real session ID received:', result.sessionId);
+            setRealSessionId(result.sessionId);
+          }
         } else {
-          throw new Error('No session ID returned from API');
+          const errorData = await response.json();
+          console.error('API Error:', errorData);
         }
-      } else {
-        const errorData = await response.json();
-        console.error('API Error:', errorData);
-        throw new Error(errorData.error || 'Failed to start session');
-      }
+      }).catch((error) => {
+        console.error('Error in background API call:', error);
+      });
+
     } catch (error) {
       console.error('Error starting session:', error);
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAgentConversationComplete = () => {
+    const finalSessionId = realSessionId || sessionId;
+    if (finalSessionId) {
+      router.push(`/session?id=${finalSessionId}`);
     }
   };
 
@@ -181,6 +204,19 @@ export default function OnboardingFlow() {
       handleNext();
     }
   };
+
+  // Show agent conversation if session is started
+  console.log('Render check - showAgentConversation:', showAgentConversation, 'sessionId:', sessionId);
+  if (showAgentConversation && sessionId) {
+    console.log('Rendering AgentConversation component');
+    return (
+      <AgentConversation 
+        sessionId={sessionId} 
+        realSessionId={realSessionId}
+        onComplete={handleAgentConversationComplete}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
@@ -309,7 +345,7 @@ export default function OnboardingFlow() {
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4 mr-2" />
-                          Generate My Startup Pack
+                          Create Starter Pack
                         </>
                       )
                     ) : (
