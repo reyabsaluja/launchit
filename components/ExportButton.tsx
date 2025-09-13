@@ -178,7 +178,7 @@ export default function ExportButton({
           </div>
           
           <div className="p-3 border-t border-gray-100 text-xs text-gray-500">
-            File will be saved as "Startup-Kickoff-Pack.md"
+            File will be saved as &quot;Startup-Kickoff-Pack.md&quot;
           </div>
         </div>
       )}

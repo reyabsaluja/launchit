@@ -47,26 +47,36 @@ export interface ProjectBrief {
 // Helper function to detect if a message contains an artifact
 function detectArtifact(content: string): { hasArtifact: boolean; type?: string } {
   const triggerPhrases = agentsConfig.global_settings.deliverable_trigger_phrases;
+  const contentLower = content.toLowerCase();
+  
+  // Check for trigger phrases
   const hasArtifact = triggerPhrases.some(phrase => 
-    content.toLowerCase().includes(phrase.toLowerCase())
+    contentLower.includes(phrase.toLowerCase())
   );
 
-  if (!hasArtifact) {
+  // Also detect artifacts based on content structure and length
+  const hasStructuredContent = (
+    content.includes('#') || 
+    content.includes('**') || 
+    content.includes('##') ||
+    content.length > 500 // Long responses likely contain deliverables
+  );
+
+  if (!hasArtifact && !hasStructuredContent) {
     return { hasArtifact: false };
   }
 
-  // Detect artifact type based on content
-  const contentLower = content.toLowerCase();
-  if (contentLower.includes('prd') || contentLower.includes('product requirements')) {
+  // Detect artifact type based on content and agent role
+  if (contentLower.includes('prd') || contentLower.includes('product requirements') || contentLower.includes('problem statement')) {
     return { hasArtifact: true, type: 'PRD' };
   }
-  if (contentLower.includes('timeline') || contentLower.includes('schedule')) {
+  if (contentLower.includes('timeline') || contentLower.includes('schedule') || contentLower.includes('milestone') || contentLower.includes('week')) {
     return { hasArtifact: true, type: 'Timeline' };
   }
-  if (contentLower.includes('architecture') || contentLower.includes('technical')) {
+  if (contentLower.includes('architecture') || contentLower.includes('technical') || contentLower.includes('engineering') || contentLower.includes('tech stack')) {
     return { hasArtifact: true, type: 'Engineering' };
   }
-  if (contentLower.includes('marketing') || contentLower.includes('brand') || contentLower.includes('copy')) {
+  if (contentLower.includes('marketing') || contentLower.includes('brand') || contentLower.includes('copy') || contentLower.includes('campaign')) {
     return { hasArtifact: true, type: 'Marketing' };
   }
 
@@ -74,7 +84,7 @@ function detectArtifact(content: string): { hasArtifact: boolean; type?: string 
 }
 
 // Helper function to extract artifact content from agent response
-function extractArtifactContent(agentResponse: string, agentConfig: any): string {
+function extractArtifactContent(agentResponse: string): string {
   // Look for structured content that represents a deliverable
   const lines = agentResponse.split('\n');
   let artifactStart = -1;
@@ -170,7 +180,7 @@ export async function runConversation(projectBrief: ProjectBrief): Promise<Conve
         // Extract and store artifact if present
         if (artifactInfo.hasArtifact) {
           const artifactId = `artifact_${agentId}_${Date.now()}`;
-          const artifactContent = extractArtifactContent(content, agentConfig);
+          const artifactContent = extractArtifactContent(content);
           
           const artifact: Artifact = {
             id: artifactId,

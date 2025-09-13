@@ -119,7 +119,7 @@ export default function CEOBriefForm({ onSubmit, className = '' }: CEOBriefFormP
             Start Your Startup Journey
           </h1>
           <p className="text-gray-600">
-            Tell us about your idea and we'll create a complete startup kickoff pack
+            Tell us about your idea and we&apos;ll create a complete startup kickoff pack
           </p>
         </div>
 
@@ -137,7 +137,7 @@ export default function CEOBriefForm({ onSubmit, className = '' }: CEOBriefFormP
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
                 errors.problemStatement ? 'border-red-500' : 'border-gray-300'
               }`}
-              placeholder="Describe the problem your startup will solve. Be specific about who faces this problem and why current solutions aren't working..."
+              placeholder="Describe the problem your startup will solve. Be specific about who faces this problem and why current solutions aren&apos;t working..."
             />
             {errors.problemStatement && (
               <p className="mt-1 text-sm text-red-600">{errors.problemStatement}</p>
@@ -167,7 +167,7 @@ export default function CEOBriefForm({ onSubmit, className = '' }: CEOBriefFormP
           {/* Key Feature Idea */}
           <div>
             <label htmlFor="keyFeatureIdea" className="block text-sm font-medium text-gray-700 mb-2">
-              What's your key feature idea? *
+              What&apos;s your key feature idea? *
             </label>
             <textarea
               id="keyFeatureIdea"

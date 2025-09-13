@@ -269,7 +269,7 @@ export default function ArtifactTabs({ artifacts, onArtifactUpdate, className = 
       <div className="flex-shrink-0 border-t border-gray-200 px-4 py-3 bg-gray-50">
         <div className="flex items-center justify-between text-xs text-gray-600">
           <span>
-            Click "Edit" to modify any deliverable. Changes are saved automatically.
+            Click &quot;Edit&quot; to modify any deliverable. Changes are saved automatically.
           </span>
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1">

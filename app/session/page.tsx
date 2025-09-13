@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ChatWindow from '@/components/ChatWindow';
 import ArtifactTabs from '@/components/ArtifactTabs';
@@ -21,7 +21,7 @@ interface SessionData {
   };
 }
 
-export default function SessionPage() {
+function SessionContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('id');
   
@@ -80,7 +80,6 @@ export default function SessionPage() {
       };
     });
     
-    // TODO: Optionally save changes to server
     console.log(`Updated artifact ${artifactId}`);
   };
 
@@ -224,5 +223,21 @@ export default function SessionPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function SessionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Session</h2>
+          <p className="text-gray-600">Preparing your startup planning session...</p>
+        </div>
+      </div>
+    }>
+      <SessionContent />
+    </Suspense>
   );
 }
