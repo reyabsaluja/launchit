@@ -294,19 +294,6 @@ function SessionContent() {
               >
                 Open Marketing Pack
               </Button>
-              <Button
-                onClick={() => {
-                  const id = sessionId || '';
-                  if (id) {
-                    window.open(`/landing/${encodeURIComponent(id)}`, '_blank');
-                  } else {
-                    alert('No session id available');
-                  }
-                }}
-                className="whitespace-nowrap"
-              >
-                Open Generated Website
-              </Button>
             </div>
           </div>
           
