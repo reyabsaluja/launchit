@@ -3,7 +3,7 @@ import { ChatCohere } from '@langchain/cohere';
 // Initialize LangChain Cohere chat model
 const cohereChatModel = new ChatCohere({
   apiKey: process.env.COHERE_API_KEY,
-  model: 'command-r-plus',
+  model: 'command-r',
   temperature: 0.7,
 });
 

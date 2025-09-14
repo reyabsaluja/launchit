@@ -107,15 +107,21 @@ function removeSSEClient(sessionId: string, clientId: string) {
 
 function broadcastToSSEClients(sessionId: string, data: any) {
   const clients = sseClients.get(sessionId);
-  if (clients) {
+  if (clients && clients.length > 0) {
     const message = `data: ${JSON.stringify(data)}\n\n`;
-    clients.forEach(client => {
+    console.log(`Broadcasting to ${clients.length} SSE clients for session ${sessionId}:`, data.type);
+    
+    clients.forEach((client, index) => {
       try {
         client.controller.enqueue(new TextEncoder().encode(message));
       } catch (error) {
-        console.error('Error sending SSE message:', error);
+        console.error(`Error sending SSE message to client ${index}:`, error);
+        // Remove failed client
+        removeSSEClient(sessionId, client.id);
       }
     });
+  } else {
+    console.log(`No SSE clients found for session ${sessionId}`);
   }
 }
 
@@ -219,7 +225,10 @@ export async function POST(request: NextRequest) {
           totalArtifacts: 0,
           participatingAgents: [],
           duration: 0,
-          phases: []
+          phases: [],
+          terminationReason: 'completed' as const,
+          totalTokens: 0,
+          rounds: 0
         },
         pmSummary: ''
       },
@@ -254,6 +263,7 @@ export async function POST(request: NextRequest) {
       },
       (message: AgentMessage) => {
         // Real-time message callback
+        console.log('📨 Broadcasting message to SSE clients:', message.agentName, message.content.substring(0, 100) + '...');
         const session = agenticSessions.get(sessionId);
         if (session) {
           session.conversationResult.messages.push(message);
@@ -264,14 +274,18 @@ export async function POST(request: NextRequest) {
           }
           
           // Broadcast to SSE clients
-          broadcastToSSEClients(sessionId, {
+          const broadcastData = {
             type: 'message',
             message,
             currentPhase: session.currentPhase
-          });
+          };
+          console.log('🔄 Broadcasting data:', broadcastData);
+          broadcastToSSEClients(sessionId, broadcastData);
           
           // Save updated session
           saveAgenticSessionToFile(sessionId, session);
+        } else {
+          console.error('❌ Session not found for broadcasting:', sessionId);
         }
       }
     ).then((result) => {
@@ -353,20 +367,31 @@ export async function GET(request: NextRequest) {
       
       const stream = new ReadableStream({
         start(controller) {
-          // Add client to SSE clients
-          addSSEClient(sessionId, {
-            id: clientId,
-            response: new NextResponse(),
-            controller
-          });
-          
-          // Send initial connection message
-          const message = `data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`;
-          controller.enqueue(new TextEncoder().encode(message));
+          try {
+            // Add client to SSE clients
+            addSSEClient(sessionId, {
+              id: clientId,
+              response: new NextResponse(),
+              controller
+            });
+            
+            // Send initial connection message
+            const message = `data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`;
+            controller.enqueue(new TextEncoder().encode(message));
+            console.log(`SSE client ${clientId} connected for session ${sessionId}`);
+          } catch (error) {
+            console.error('Error starting SSE stream:', error);
+            controller.error(error);
+          }
         },
         cancel() {
-          // Remove client when connection closes
-          removeSSEClient(sessionId, clientId);
+          try {
+            // Remove client when connection closes
+            removeSSEClient(sessionId, clientId);
+            console.log(`SSE client ${clientId} disconnected from session ${sessionId}`);
+          } catch (error) {
+            console.error('Error canceling SSE stream:', error);
+          }
         }
       });
 
@@ -375,6 +400,9 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
       });
     }

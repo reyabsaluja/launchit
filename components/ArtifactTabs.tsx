@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Artifact } from "@/lib/orchestrator";
+import { Artifact } from "@/lib/agenticOrchestrator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Calendar, Zap, Megaphone, CheckCircle } from 'lucide-react';
@@ -147,8 +147,8 @@ function EditableArtifact({ artifact, tabInfo, onUpdate }: EditableArtifactProps
                 placeholder={tabInfo.placeholder}
               />
             ) : (
-              <div className="h-full overflow-y-auto">
-                <div className="p-4 bg-muted/30 rounded-lg border border-border h-full">
+              <div className="h-full overflow-y-auto max-h-[calc(100vh-300px)]">
+                <div className="p-4 bg-muted/30 rounded-lg border border-border min-h-full">
                   <div className="prose prose-invert max-w-none text-sm leading-relaxed">
                     <ReactMarkdown
                       rehypePlugins={[rehypeHighlight]}

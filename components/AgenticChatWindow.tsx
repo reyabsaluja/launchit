@@ -3,80 +3,85 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AgentMessage } from "@/lib/agenticOrchestrator";
 
-// Agent configuration for styling
+// Agent configuration for styling - Modern, clean colors
 const agentConfig = {
   product_manager: {
     name: "Alex Chen",
     role: "Product Manager",
-    color: "bg-blue-500",
-    textColor: "text-blue-300",
-    bgColor: "bg-blue-950/50",
+    color: "bg-slate-700",
+    textColor: "text-slate-200",
+    bgColor: "bg-slate-50 dark:bg-slate-900/50",
+    borderColor: "border-slate-200 dark:border-slate-700",
     icon: "👤"
   },
   senior_engineer: {
     name: "Jordan Kim", 
     role: "Senior Engineer",
-    color: "bg-green-500",
-    textColor: "text-green-300",
-    bgColor: "bg-green-950/50",
+    color: "bg-emerald-600",
+    textColor: "text-emerald-200",
+    bgColor: "bg-emerald-50 dark:bg-emerald-900/50",
+    borderColor: "border-emerald-200 dark:border-emerald-700",
     icon: "⚡"
   },
   project_manager: {
     name: "Sam Taylor",
     role: "Project Manager", 
-    color: "bg-orange-500",
-    textColor: "text-orange-300",
-    bgColor: "bg-orange-950/50",
+    color: "bg-amber-600",
+    textColor: "text-amber-200",
+    bgColor: "bg-amber-50 dark:bg-amber-900/50",
+    borderColor: "border-amber-200 dark:border-amber-700",
     icon: "📋"
   },
   marketing_lead: {
     name: "Riley Morgan",
     role: "Marketing Lead",
-    color: "bg-purple-500", 
-    textColor: "text-purple-300",
-    bgColor: "bg-purple-950/50",
+    color: "bg-violet-600", 
+    textColor: "text-violet-200",
+    bgColor: "bg-violet-50 dark:bg-violet-900/50",
+    borderColor: "border-violet-200 dark:border-violet-700",
     icon: "📢"
   },
   facilitator: {
     name: "Session Facilitator",
     role: "Facilitator",
-    color: "bg-gray-500",
-    textColor: "text-gray-300",
-    bgColor: "bg-gray-950/50",
+    color: "bg-gray-600",
+    textColor: "text-gray-200",
+    bgColor: "bg-gray-50 dark:bg-gray-900/50",
+    borderColor: "border-gray-200 dark:border-gray-700",
     icon: "🎯"
   }
 };
 
-// Phase configuration
+// Phase configuration - Clean, modern styling
 const phaseConfig = {
   initial_discussion: {
     name: "Initial Discussion",
     description: "Agents are sharing their initial thoughts and perspectives",
-    color: "bg-blue-500",
+    color: "bg-slate-600",
     icon: "💭"
   },
   deep_dive: {
     name: "Deep Dive",
     description: "Creating detailed plans and technical specifications",
-    color: "bg-green-500",
+    color: "bg-emerald-600",
     icon: "🔍"
   },
   consolidation: {
     name: "Consolidation",
     description: "Finalizing deliverables and ensuring alignment",
-    color: "bg-orange-500",
+    color: "bg-amber-600",
     icon: "🔧"
   },
   finalization: {
     name: "Summary",
     description: "Product Manager providing final summary",
-    color: "bg-purple-500",
+    color: "bg-violet-600",
     icon: "📋"
   },
   completed: {
     name: "Completed",
     description: "Planning session complete",
-    color: "bg-emerald-500",
+    color: "bg-emerald-600",
     icon: "✅"
   }
 };
@@ -256,45 +261,139 @@ export default function AgenticChatWindow({
 
   // Set up Server-Sent Events for real-time updates
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      console.log('No sessionId provided, skipping SSE setup');
+      return;
+    }
     
+    console.log(`Setting up SSE connection for session: ${sessionId}`);
     setConnectionStatus('connecting');
-    const eventSource = new EventSource(`/api/agentic-session?sessionId=${sessionId}&stream=true`);
     
-    eventSource.onopen = () => {
-      setConnectionStatus('connected');
-    };
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
     
-    eventSource.onmessage = (event) => {
+    const setupSSE = () => {
       try {
-        const data = JSON.parse(event.data);
+        eventSource = new EventSource(`/api/agentic-session?sessionId=${sessionId}&stream=true`);
         
-        if (data.type === 'message') {
-          setRealtimeMessages(prev => [...prev, data.message]);
-        } else if (data.type === 'complete') {
-          // Conversation completed
-          console.log('Agentic conversation completed');
-        } else if (data.type === 'error') {
-          console.error('Agentic conversation error:', data.error);
-        }
+        eventSource.onopen = () => {
+          console.log('✅ SSE connection opened successfully');
+          setConnectionStatus('connected');
+          // Clear any pending reconnect attempts
+          if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+          }
+        };
+        
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📨 SSE message received:', data.type, data);
+            
+            if (data.type === 'message') {
+              console.log('➕ Adding new message to chat:', {
+                agentName: data.message.agentName,
+                content: data.message.content.substring(0, 100) + '...',
+                messageId: data.message.id
+              });
+              
+              setRealtimeMessages(prev => {
+                // Avoid duplicates by checking message ID
+                const exists = prev.some(msg => msg.id === data.message.id);
+                if (exists) {
+                  console.log('⚠️ Duplicate message detected, skipping:', data.message.id);
+                  return prev;
+                }
+                const newMessages = [...prev, data.message];
+                console.log(`📊 Total messages now: ${newMessages.length}`);
+                return newMessages;
+              });
+            } else if (data.type === 'complete') {
+              console.log('✅ Agentic conversation completed');
+              setConnectionStatus('disconnected');
+              // Don't force reload, just update the UI state
+            } else if (data.type === 'error') {
+              console.error('❌ Agentic conversation error:', data.error);
+              setConnectionStatus('disconnected');
+            } else if (data.type === 'connected') {
+              console.log('🔗 SSE client connected:', data.clientId);
+            }
+          } catch (error) {
+            console.error('❌ Error parsing SSE data:', error, 'Raw data:', event.data);
+          }
+        };
+        
+        eventSource.onerror = (error) => {
+          console.error('❌ SSE connection error:', error, 'ReadyState:', eventSource?.readyState);
+          setConnectionStatus('disconnected');
+          
+          // Close the current connection
+          if (eventSource) {
+            eventSource.close();
+          }
+          
+          // Attempt to reconnect after a delay
+          if (!reconnectTimeout) {
+            reconnectTimeout = setTimeout(() => {
+              console.log('🔄 Attempting to reconnect SSE...');
+              setConnectionStatus('connecting');
+              setupSSE();
+            }, 3000);
+          }
+        };
       } catch (error) {
-        console.error('Error parsing SSE data:', error);
+        console.error('❌ Error setting up SSE:', error);
+        setConnectionStatus('disconnected');
       }
     };
     
-    eventSource.onerror = () => {
-      setConnectionStatus('disconnected');
-    };
+    setupSSE();
     
     return () => {
-      eventSource.close();
+      console.log('🔌 Cleaning up SSE connection');
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (eventSource) {
+        eventSource.close();
+      }
       setConnectionStatus('disconnected');
     };
   }, [sessionId]);
 
   // Update messages when props change
   useEffect(() => {
-    setRealtimeMessages(messages);
+    console.log('AgenticChatWindow: Received messages prop:', {
+      count: messages?.length || 0,
+      messages: messages?.map(m => ({ id: m.id, agentName: m.agentName, contentPreview: m.content.substring(0, 50) + '...' }))
+    });
+    
+    // Only update if we have messages and they're different from current state
+    if (messages && messages.length > 0) {
+      setRealtimeMessages(prevMessages => {
+        // If we have no previous messages, use the new ones
+        if (prevMessages.length === 0) {
+          console.log('📥 Setting initial messages from props');
+          return messages;
+        }
+        
+        // Merge messages, avoiding duplicates
+        const existingIds = new Set(prevMessages.map(m => m.id));
+        const newMessages = messages.filter(m => !existingIds.has(m.id));
+        
+        if (newMessages.length > 0) {
+          console.log(`📥 Adding ${newMessages.length} new messages from props`);
+          return [...prevMessages, ...newMessages];
+        }
+        
+        return prevMessages;
+      });
+    } else if (messages && messages.length === 0) {
+      // If props explicitly provide an empty array, reset our state
+      console.log('🔄 Resetting messages to empty array from props');
+      setRealtimeMessages([]);
+    }
   }, [messages]);
 
   useEffect(() => {

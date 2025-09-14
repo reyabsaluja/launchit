@@ -6,13 +6,14 @@ import ChatWindow from '@/components/ChatWindow';
 import AgenticChatWindow from '@/components/AgenticChatWindow';
 import ArtifactTabs from '@/components/ArtifactTabs';
 import ExportButton from '@/components/ExportButton';
-import { ConversationMessage, Artifact } from '@/lib/orchestrator';
-import { AgentMessage, Artifact as AgenticArtifact } from '@/lib/agenticOrchestrator';
+// import { ConversationMessage, Artifact } from '@/lib/orchestrator';
+import { AgentMessage, Artifact as AgenticArtifact, Artifact } from '@/lib/agenticOrchestrator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, AlertTriangle, Home, Building2, Users, Target, Clock, DollarSign } from 'lucide-react';
+import { ConversationMessage } from '@/lib/types/conversation';
 
 interface SessionData {
   conversation: ConversationMessage[];
@@ -113,7 +114,14 @@ function SessionContent() {
       const result = await response.json();
       
       if (result.success) {
+        console.log('SessionPage: Loaded agentic session data:', result.data);
+        console.log('SessionPage: Messages count:', result.data.messages?.length || 0);
         setAgenticSessionData(result.data);
+        
+        // If session has no messages yet, set up polling to wait for conversation to start
+        if (!result.data.messages || result.data.messages.length === 0) {
+          console.log('Session has no messages yet, will rely on SSE for real-time updates');
+        }
       } else {
         throw new Error(result.error || 'Failed to load agentic session data');
       }

@@ -63,6 +63,9 @@ export interface AgenticConversationResult {
     participatingAgents: string[];
     duration: number;
     phases: string[];
+    terminationReason: 'completed' | 'max_messages' | 'max_tokens' | 'timeout' | 'convergence' | 'max_rounds';
+    totalTokens: number;
+    rounds: number;
   };
   pmSummary: string;
 }
@@ -178,7 +181,7 @@ ${recentMessages}
 LATEST MESSAGE TO RESPOND TO:
 ${input}
 
-Your response (be natural, specific, and add real value):`;
+Your response (be natural, specific, and add real value. Keep it concise - max 300 words):`;
     
     console.log(`📝 Prompt length: ${contextualPrompt.length} characters`);
     
@@ -244,19 +247,41 @@ Just answer: YES or NO`;
   }
 }
 
+// Configuration for conversation limits
+interface ConversationLimits {
+  maxTotalMessages: number;
+  maxTokens: number;
+  maxDurationMs: number;
+  maxRoundsPerPhase: number;
+  convergenceThreshold: number;
+}
+
 // Enhanced orchestrator for agentic conversations
 export class AgenticOrchestrator {
   private agents: Map<string, AgenticAgent> = new Map();
   private context: ConversationContext;
   private messageCallbacks: Array<(message: AgentMessage) => void> = [];
+  private limits: ConversationLimits;
+  private startTime: number = 0;
+  private totalTokens: number = 0;
   
-  constructor(projectBrief: ProjectBrief, onMessage?: (message: AgentMessage) => void) {
+  constructor(projectBrief: ProjectBrief, onMessage?: (message: AgentMessage) => void, limits?: Partial<ConversationLimits>) {
     this.context = {
       projectBrief,
       messages: [],
       currentTopic: 'project_planning',
       phase: 'initial_discussion',
       artifacts: {}
+    };
+    
+    // Set default limits with user overrides
+    this.limits = {
+      maxTotalMessages: 20,
+      maxTokens: 15000,
+      maxDurationMs: 5 * 60 * 1000, // 5 minutes
+      maxRoundsPerPhase: 4,
+      convergenceThreshold: 3,
+      ...limits
     };
     
     if (onMessage) {
@@ -287,8 +312,68 @@ export class AgenticOrchestrator {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
+  private shouldTerminate(): boolean {
+    const currentTime = Date.now();
+    const elapsed = currentTime - this.startTime;
+    
+    // Check time limit
+    if (elapsed > this.limits.maxDurationMs) {
+      console.log('⏰ Time limit exceeded, terminating conversation');
+      return true;
+    }
+    
+    // Check message limit
+    if (this.context.messages.length >= this.limits.maxTotalMessages) {
+      console.log('📝 Message limit exceeded, terminating conversation');
+      return true;
+    }
+    
+    // Check token limit
+    if (this.totalTokens >= this.limits.maxTokens) {
+      console.log('🔤 Token limit exceeded, terminating conversation');
+      return true;
+    }
+    
+    return false;
+  }
+  
+  private detectConvergence(response: string): boolean {
+    const convergenceKeywords = [
+      'i agree', 'agreed', 'consensus', 'we\'re aligned', 'sounds good',
+      'that works', 'perfect', 'exactly', 'yes, that\'s right',
+      'i think we have', 'we\'ve covered', 'that covers it',
+      'we\'re on the same page', 'that sums it up', 'good summary'
+    ];
+    
+    const disagreementKeywords = [
+      'however', 'but', 'although', 'disagree', 'concern', 'issue',
+      'problem', 'wait', 'actually', 'not sure', 'question'
+    ];
+    
+    const responseLower = response.toLowerCase();
+    
+    // Check for disagreement first - if found, no convergence
+    const hasDisagreement = disagreementKeywords.some(keyword => 
+      responseLower.includes(keyword)
+    );
+    
+    if (hasDisagreement) {
+      return false;
+    }
+    
+    // Check for convergence keywords
+    const hasConvergence = convergenceKeywords.some(keyword => 
+      responseLower.includes(keyword)
+    );
+    
+    // Additional heuristic: short responses often indicate agreement
+    const isShortAgreement = response.length < 200 && hasConvergence;
+    
+    return hasConvergence || isShortAgreement;
+  }
+  
   public async startConversation(): Promise<AgenticConversationResult> {
-    const startTime = Date.now();
+    this.startTime = Date.now();
     
     try {
       console.log('🚀 Starting conversation phases...');
@@ -298,20 +383,36 @@ export class AgenticOrchestrator {
       await this.runInitialDiscussion();
       console.log(`✅ Initial discussion complete. Messages so far: ${this.context.messages.length}`);
       
-      console.log('🔍 Phase 2: Deep Dive');
-      await this.runDeepDive();
-      console.log(`✅ Deep dive complete. Messages so far: ${this.context.messages.length}`);
+      // Skip deep dive and consolidation if we're close to limits
+      if (this.context.messages.length < this.limits.maxTotalMessages - 8) {
+        console.log('🔍 Phase 2: Deep Dive');
+        await this.runDeepDive();
+        console.log(`✅ Deep dive complete. Messages so far: ${this.context.messages.length}`);
+      }
       
-      console.log('🎯 Phase 3: Consolidation');
-      await this.runConsolidation();
-      console.log(`✅ Consolidation complete. Messages so far: ${this.context.messages.length}`);
+      if (this.context.messages.length < this.limits.maxTotalMessages - 4) {
+        console.log('🎯 Phase 3: Consolidation');
+        await this.runConsolidation();
+        console.log(`✅ Consolidation complete. Messages so far: ${this.context.messages.length}`);
+      }
       
       console.log('📝 Phase 4: Final Summary');
       // Skip PM summary for now - focus on getting basic conversation working
       console.log(`✅ All phases complete. Final message count: ${this.context.messages.length}`);
       
       const endTime = Date.now();
-      const duration = endTime - startTime;
+      const duration = endTime - this.startTime;
+      
+      // Determine termination reason
+      let terminationReason: 'completed' | 'max_messages' | 'max_tokens' | 'timeout' | 'convergence' | 'max_rounds' = 'completed';
+      
+      if (this.context.messages.length >= this.limits.maxTotalMessages) {
+        terminationReason = 'max_messages';
+      } else if (this.totalTokens >= this.limits.maxTokens) {
+        terminationReason = 'max_tokens';
+      } else if (duration > this.limits.maxDurationMs) {
+        terminationReason = 'timeout';
+      }
       
       // Generate final summary
       const summary = {
@@ -319,7 +420,10 @@ export class AgenticOrchestrator {
         totalArtifacts: Object.keys(this.context.artifacts).length,
         participatingAgents: [...new Set(this.context.messages.map(msg => msg.agentId))],
         duration,
-        phases: ['initial_discussion', 'deep_dive', 'consolidation', 'pm_summary']
+        phases: ['initial_discussion', 'deep_dive', 'consolidation', 'pm_summary'],
+        terminationReason,
+        totalTokens: this.totalTokens,
+        rounds: 1
       };
       
       console.log('🎉 Conversation completed successfully!');
@@ -353,7 +457,7 @@ Project Details:
 - Budget: ${this.context.projectBrief.budget}
 ${this.context.projectBrief.additionalContext ? `- Additional Context: ${this.context.projectBrief.additionalContext}` : ''}
 
-As the Product Manager, provide your initial assessment. What should we prioritize for the MVP? What are the key user needs and market opportunities you see?`;
+As the Product Manager, provide your initial assessment in 2-3 concise paragraphs. What should we prioritize for the MVP? What are the key user needs and market opportunities you see?`;
     
     try {
       console.log('🎯 PM Agent generating initial response...');
@@ -366,7 +470,7 @@ As the Product Manager, provide your initial assessment. What should we prioriti
       
       // Let other agents respond naturally to the PM's assessment
       console.log('🤝 Starting discussion facilitation...');
-      await this.facilitateDiscussion(6); // Allow for natural back-and-forth
+      await this.facilitateDiscussion(4); // Increased to allow proper progression
       console.log('✅ Discussion facilitation complete');
     } catch (error) {
       console.error('❌ Error in initial discussion:', error);
@@ -383,12 +487,12 @@ As the Product Manager, provide your initial assessment. What should we prioriti
       `${msg.agentName}: ${msg.content}`
     ).join('\n\n');
     
-    const deepDivePrompt = `Based on our initial discussion:\n\n${recentDiscussion}\n\nNow let's dive deeper into implementation details. Each team member should create their specific deliverables:\n\n- Product Manager: Create a detailed PRD with user stories and success metrics\n- Senior Engineer: Design the technical architecture and development plan\n- Project Manager: Build a realistic timeline with milestones and risk assessment\n- Marketing Lead: Develop go-to-market strategy and brand positioning\n\nLet's collaborate on these deliverables, building on what we've discussed.`;
+    const deepDivePrompt = `Based on our initial discussion:\n\n${recentDiscussion}\n\nNow let's create concise deliverables (max 200 words each):\n\n- Product Manager: Create a brief PRD with key user stories\n- Senior Engineer: Design core technical architecture\n- Project Manager: Build a realistic timeline with milestones\n- Marketing Lead: Develop go-to-market strategy\n\nKeep responses focused and actionable.`;
     
     const facilitatorMessage = this.createMessage('facilitator', deepDivePrompt, 'discussion');
     this.addMessage(facilitatorMessage);
     
-    await this.facilitateDiscussion(10); // Discussion for detailed planning
+    await this.facilitateDiscussion(4); // Increased to allow proper progression
   }
   
   private async runConsolidation(): Promise<void> {
@@ -398,7 +502,7 @@ As the Product Manager, provide your initial assessment. What should we prioriti
     const keyDecisions = this.context.messages
       .filter(msg => msg.content.length > 200)
       .slice(-6)
-      .map(msg => `${msg.agentName}: ${msg.content.substring(0, 150)}...`)
+      .map(msg => `${msg.agentName}: ${msg.content.substring(0, 200)}`)
       .join('\n\n');
     
     const consolidationPrompt = `Let's consolidate our startup plan. Here are the key points discussed:\n\n${keyDecisions}\n\nNow let's finalize everything:\n1. Review and refine your deliverables\n2. Identify any gaps or conflicts\n3. Ensure all components work together\n4. Address any remaining concerns\n\nMake sure our plan is cohesive and actionable.`;
@@ -406,14 +510,17 @@ As the Product Manager, provide your initial assessment. What should we prioriti
     const facilitatorMessage = this.createMessage('facilitator', consolidationPrompt, 'discussion');
     this.addMessage(facilitatorMessage);
     
-    await this.facilitateDiscussion(6); // Final consolidation discussion
+    await this.facilitateDiscussion(4); // Increased to allow proper progression
   }
   
   private async facilitateDiscussion(maxRounds: number): Promise<void> {
     let rounds = 0;
     let consecutiveNoResponses = 0;
+    let convergenceCount = 0;
     
-    while (rounds < maxRounds && consecutiveNoResponses < 2) {
+    while (rounds < Math.min(maxRounds, this.limits.maxRoundsPerPhase) && 
+           consecutiveNoResponses < 2 && 
+           !this.shouldTerminate()) {
       const lastMessage = this.context.messages[this.context.messages.length - 1];
       let someoneResponded = false;
       
@@ -460,6 +567,21 @@ As the Product Manager, provide your initial assessment. What should we prioriti
           
           const message = this.createMessage(chosenAgentId, response, 'discussion');
           this.addMessage(message);
+          
+          // Update token count
+          this.totalTokens += Math.ceil(response.length / 4);
+          
+          // Check for convergence
+          if (this.detectConvergence(response)) {
+            convergenceCount++;
+            console.log(`🎯 Convergence detected (${convergenceCount}/${this.limits.convergenceThreshold})`);
+            if (convergenceCount >= this.limits.convergenceThreshold) {
+              console.log('✅ Conversation converged, ending discussion phase');
+              break;
+            }
+          } else {
+            convergenceCount = 0;
+          }
           
           // Check for artifacts in the response
           await this.extractArtifacts(message);
@@ -658,12 +780,13 @@ Make this actionable and comprehensive for ${this.context.projectBrief.companyNa
 // Helper function to run agentic conversation
 export async function runAgenticConversation(
   projectBrief: ProjectBrief,
-  onMessage?: (message: AgentMessage) => void
+  onMessage?: (message: AgentMessage) => void,
+  limits?: Partial<ConversationLimits>
 ): Promise<AgenticConversationResult> {
   console.log(`Starting agentic conversation session for ${projectBrief.companyName}`);
   console.log('Project brief:', JSON.stringify(projectBrief, null, 2));
   
-  const orchestrator = new AgenticOrchestrator(projectBrief, onMessage);
+  const orchestrator = new AgenticOrchestrator(projectBrief, onMessage, limits);
   
   try {
     console.log('🚀 Starting agentic conversation...');
