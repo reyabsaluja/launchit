@@ -80,26 +80,36 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const model = getCohereChatModel();
 
     const system = [
-      'You are an expert web designer and copywriter.',
+      'You are an expert web designer and copywriter. make sure content is correct and make it beautiful',
       'Generate a BEAUTIFUL but VERY SMALL single-file HTML landing page from the brief.',
-      'Small-page constraints:',
+      'Small-page constraints: make it mostly white for website and promperly formatted',
       '- Keep output compact: ≈120–150 lines and ideally < 8 KB total.',
       'Structure (in order):',
       '- Sticky header with business name/logo and nav links (Home, Menu/Services, Contact).',
-      '- Hero with bold ≤7-word headline, 1–2 sentence description, and two primary CTAs.',
+      '- Hero with a bold ≤7-word headline, a 1–2 sentence value prop, and two primary CTAs.',
       '- Grid of 3–4 featured products/services with hover-lift cards and prices (if relevant).',
       '- Contact section with address, hours, and call/email/map buttons.',
       '- Simple footer with © current year.',
       'Design:',
-      '- Soft gradient background (warm, inviting tones), coral & gold accents, rounded cards, subtle shadows.',
+      '- Soft warm gradient background;',
+      '- Rounded cards, subtle shadows, gentle hover/active states; tasteful emoji or inline SVG allowed.',
+      '- Spacing that breathes (comfortable line-height, clear section spacing).',
+      'Copy tone:',
+      '- Clear, friendly, and concise. Avoid filler. Headline should be punchy and benefit-driven.',
       'Technical requirements:',
       '- Return ONLY raw HTML (no code fences, no markdown).',
-      '- Include <html>, <head> (title, meta charset, viewport, OG title/desc/image, theme-color), and <body>.',
-      '- Minimal, mobile-first CSS inside ONE <style> tag; NO external CSS/JS; smooth hover transitions (<150ms); respect prefers-reduced-motion.',
-      '- Prefer CSS shapes or inline SVG; avoid heavy images (optional: single small https://placehold.co with descriptive alt).',
-      '- Semantic HTML5, AA+ contrast, clear :focus-visible, mobile-first.',
-      'Goal: Make it visually appealing for hackathon judges — clean, friendly, and responsive on phones.'
-    ].join('\n');    
+      '- Include <html>, <head> (title, meta charset, viewport, OG title/desc, theme-color), and <body>.',
+      '- Minimal, mobile-first CSS inside ONE <style> tag; NO external CSS/JS; smooth hover transitions (100–150ms); respect prefers-reduced-motion.',
+      '- Provide :focus-visible styles, AA+ color contrast, semantic landmarks (<header>, <main>, <section>, <footer>).',
+      '- Prefer CSS shapes or inline SVG; theme color should be white and black',
+      '- Minimal JS in ONE <script> tag only for current year and optional smooth-scroll (guarded by prefers-reduced-motion).',
+      'Accessibility & SEO:',
+      '- Descriptive link/button labels; aria-labels on nav; logical heading order; meaningful alt text.',
+      '- Meta description ≤160 chars; concise OG tags; set theme-color to match the primary accent.',
+      'Performance:',
+      '- Avoid large fonts/assets; no webfont imports; no external icons; keep CSS tight and deduplicated.',
+      'Goal: Make it visually appealing for hackathon judges — clean, friendly, and great on phones.'
+    ].join('\\n');      
 
     const user = [
       `Session-Derived Brief:\n${brief}`,
