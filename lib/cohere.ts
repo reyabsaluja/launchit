@@ -1,26 +1,27 @@
 import { ChatCohere } from '@langchain/cohere';
 
-// Initialize LangChain Cohere chat model
-const cohereChatModel = new ChatCohere({
-  apiKey: process.env.COHERE_API_KEY,
-  model: 'command-r-plus',
-  temperature: 0.7,
-});
+let cachedModel: ChatCohere | null = null;
 
-// Helper function to validate API key
 export function validateCohereApiKey(): boolean {
   const apiKey = process.env.COHERE_API_KEY;
-  if (!apiKey) {
-    console.error('COHERE_API_KEY environment variable is not set');
-    return false;
-  }
-  return true;
+  return typeof apiKey === 'string' && apiKey.trim().length > 0;
 }
 
-// Helper function to get LangChain Cohere model with validation
 export function getCohereChatModel(): ChatCohere {
-  if (!validateCohereApiKey()) {
+  const apiKey = process.env.COHERE_API_KEY;
+  if (!apiKey || apiKey.trim().length === 0) {
     throw new Error('Cohere API key is not configured');
   }
-  return cohereChatModel;
+
+  if (!cachedModel) {
+    cachedModel = new ChatCohere({
+      apiKey,
+      model: 'command',
+      temperature: 0.3,
+    });
+  }
+
+  return cachedModel;
 }
+
+
