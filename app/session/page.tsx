@@ -278,6 +278,25 @@ function SessionContent() {
               <Button
                 onClick={() => {
                   const id = sessionId || '';
+                  if (id) window.open(`/landing/${encodeURIComponent(id)}`, '_blank');
+                }}
+                className="whitespace-nowrap"
+              >
+                Open Generated Website
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const id = sessionId || '';
+                  if (id) window.open(`/marketing/${encodeURIComponent(id)}`, '_blank');
+                }}
+                className="whitespace-nowrap"
+              >
+                Open Marketing Pack
+              </Button>
+              <Button
+                onClick={() => {
+                  const id = sessionId || '';
                   if (id) {
                     window.open(`/landing/${encodeURIComponent(id)}`, '_blank');
                   } else {
