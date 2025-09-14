@@ -83,22 +83,23 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
       'You are an expert web designer and copywriter.',
       'Generate a BEAUTIFUL but VERY SMALL single-file HTML landing page from the brief.',
       'Small-page constraints:',
-      '- Single-screen layout (no scrolling on mobile).',
-      '- Keep output compact: ≤ 120 lines and ideally < 8 KB total.',
+      '- Keep output compact: ≈120–150 lines and ideally < 8 KB total.',
       'Structure (in order):',
-      '- Hero with bold ≤7-word headline, one short sentence, and a prominent primary CTA.',
-      '- Three concise benefits in a tidy grid with tiny CSS icon bullets.',
-      '- Tiny footer (legal/copyright).',
+      '- Sticky header with business name/logo and nav links (Home, Menu/Services, Contact).',
+      '- Hero with bold ≤7-word headline, 1–2 sentence description, and two primary CTAs.',
+      '- Grid of 3–4 featured products/services with hover-lift cards and prices (if relevant).',
+      '- Contact section with address, hours, and call/email/map buttons.',
+      '- Simple footer with © current year.',
       'Design:',
-      '- Modern and clean: soft **radial** gradient background, CSS :root vars for one primary + one accent, rounded-xl corners, light shadow, fluid type scale, generous white space.',
+      '- Soft gradient background (warm, inviting tones), coral & gold accents, rounded cards, subtle shadows.',
       'Technical requirements:',
       '- Return ONLY raw HTML (no code fences, no markdown).',
       '- Include <html>, <head> (title, meta charset, viewport, OG title/desc/image, theme-color), and <body>.',
-      '- Use minimal inline CSS in ONE <style> block; NO external CSS/JS; tiny hover/focus transitions (<150ms), respect prefers-reduced-motion.',
-      '- Prefer CSS shapes or inline SVG for icons; avoid images (optional: single small https://placehold.co with descriptive alt).',
-      '- Semantic HTML5, AA+ contrast, clear focus-visible, mobile-first.'
-    ].join('\n');
-    
+      '- Minimal, mobile-first CSS inside ONE <style> tag; NO external CSS/JS; smooth hover transitions (<150ms); respect prefers-reduced-motion.',
+      '- Prefer CSS shapes or inline SVG; avoid heavy images (optional: single small https://placehold.co with descriptive alt).',
+      '- Semantic HTML5, AA+ contrast, clear :focus-visible, mobile-first.',
+      'Goal: Make it visually appealing for hackathon judges — clean, friendly, and responsive on phones.'
+    ].join('\n');    
 
     const user = [
       `Session-Derived Brief:\n${brief}`,
