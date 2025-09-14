@@ -1,0 +1,68 @@
+%% Tech Architecture (Mermaid) – how pieces work together
+flowchart TB
+
+  %% Layers
+  subgraph Browser
+    BUI[Session Dashboard (React)]
+    BUI -->|Buttons| BTN1[Open /landing/:id]
+    BUI -->|Buttons| BTN2[Open /marketing/:id]
+    BUI -.SSE.->|/api/agentic-session?stream=true| SSE[(EventStream)]
+  end
+
+  subgraph Next.js App (App Router)
+    direction TB
+    subgraph UI Components
+      CW[ChatWindow]
+      ACW[AgenticChatWindow]
+      AT[ArtifactTabs]
+      EXP[ExportButton]
+    end
+
+    subgraph Route Handlers (Server)
+      API1[/api/start-session\n(legacy)]
+      API2[/api/agentic-session\n(agentic + SSE)]
+      GENW[/landing/:id\n(HTML website)]
+      GENM[/marketing/:id\n(HTML pack)]
+    end
+  end
+
+  subgraph Orchestration
+    OR1[orchestrator.ts\n(runConversation)]
+    OR2[agenticOrchestrator.ts\n(runAgenticConversation)]
+    AF[agentFactory.ts + agents.json]
+  end
+
+  subgraph LLM Layer
+    LC[LangChain ChatCohere]
+    CO[(Cohere API)]
+  end
+
+  FS[(.sessions JSON store)]
+  ENV[(.env.local: COHERE_API_KEY)]
+
+  %% Flows
+  BUI -->|fetch POST| API1
+  BUI -->|fetch POST| API2
+  API1 --> OR1 --> AF
+  API2 --> OR2 --> AF
+  OR1 --> LC --> CO
+  OR2 --> LC --> CO
+  OR1 --> FS
+  OR2 --> FS
+  API2 -.broadcast SSE.-> BUI
+
+  BTN1 --> GENW --> FS
+  GENW --> LC --> CO
+  GENW --> BUI
+
+  BTN2 --> GENM --> FS
+  GENM --> LC --> CO
+  GENM --> BUI
+
+  ENV -.provides key.-> LC
+
+  classDef node fill:#fff,stroke:#888,stroke-width:1,color:#111;
+  classDef store fill:#eef6ff,stroke:#5b9bd5,color:#0b3d60;
+  class BUI,CW,ACW,AT,EXP,API1,API2,GENW,GENM,OR1,OR2,AF,LC,CO node;
+  class FS,ENV store;
+

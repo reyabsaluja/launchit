@@ -1,0 +1,32 @@
+%% Architecture overview (Mermaid)
+flowchart LR
+  U[User] --> UI[Next.js App (App Router)\n/session dashboard]
+
+  subgraph Dashboard UI
+    UI -->|POST /api/start-session\nPOST /api/agentic-session| APIStart[Session APIs]
+    UI -->|Open Generated Website| LAND[/landing/:id/]
+    UI -->|Open Marketing Pack| MKT[/marketing/:id/]
+  end
+
+  subgraph Planning Engine
+    APIStart --> OR[Orchestrator\n(legacy or agentic)]
+    OR -->|LLM calls| CO[(Cohere Chat API)]
+    OR --> FS[(.sessions JSON store)]
+    APIStart <-->|SSE (agentic)| UI
+  end
+
+  subgraph Generators
+    LAND --> FS
+    LAND -->|LLM prompt from brief| CO
+    LAND --> UI
+
+    MKT --> FS
+    MKT -->|LLM prompt from brief| CO
+    MKT --> UI
+  end
+
+  classDef node fill:#ffffff,stroke:#888,stroke-width:1,color:#111;
+  classDef store fill:#eef6ff,stroke:#5b9bd5,color:#0b3d60;
+  class UI,APIStart,OR,LAND,MKT node;
+  class FS store;
+
