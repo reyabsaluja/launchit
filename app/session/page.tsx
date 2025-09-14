@@ -267,14 +267,27 @@ function SessionContent() {
               </div>
             </div>
             
-            {/* Export Button */}
-            <div className="flex-shrink-0">
+            {/* Actions */}
+            <div className="flex-shrink-0 flex items-center gap-3">
               <ExportButton 
                 artifacts={currentData.artifacts}
                 showStats={true}
                 variant="primary"
                 size="md"
               />
+              <Button
+                onClick={() => {
+                  const id = sessionId || '';
+                  if (id) {
+                    window.open(`/landing/${encodeURIComponent(id)}`, '_blank');
+                  } else {
+                    alert('No session id available');
+                  }
+                }}
+                className="whitespace-nowrap"
+              >
+                Open Generated Website
+              </Button>
             </div>
           </div>
           
