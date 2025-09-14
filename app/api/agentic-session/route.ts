@@ -213,7 +213,9 @@ export async function POST(request: NextRequest) {
     // Generate session ID
     const sessionId = generateSessionId();
 
-    console.log(`Starting agentic conversation session ${sessionId} for ${body.companyName}`);
+    console.log(`🚀 Starting agentic conversation session ${sessionId} for ${body.companyName}`);
+    console.log(`📊 Current active sessions: ${agenticSessions.size}`);
+    console.log(`📊 Current SSE clients: ${sseClients.size}`);
 
     // Create initial session data
     const sessionData: AgenticSessionData = {
@@ -250,8 +252,13 @@ export async function POST(request: NextRequest) {
     agenticSessions.set(sessionId, sessionData);
     saveAgenticSessionToFile(sessionId, sessionData);
 
-    // Start the agentic conversation in the background
-    runAgenticConversation(
+    // Start the agentic conversation in the background with a delay
+    // to ensure frontend SSE connection is established
+    setTimeout(() => {
+      console.log(`🎬 Starting conversation for session ${sessionId} after delay`);
+      console.log(`📊 SSE clients connected: ${sseClients.get(sessionId)?.length || 0}`);
+      
+      runAgenticConversation(
       {
         companyName: body.companyName,
         industry: body.industry,
@@ -315,6 +322,7 @@ export async function POST(request: NextRequest) {
         error: error.message
       });
     });
+    }, 3000); // 3 second delay to allow frontend to connect
 
     // Return initial response
     return NextResponse.json({
@@ -378,7 +386,9 @@ export async function GET(request: NextRequest) {
             // Send initial connection message
             const message = `data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`;
             controller.enqueue(new TextEncoder().encode(message));
-            console.log(`SSE client ${clientId} connected for session ${sessionId}`);
+            console.log(`🔗 SSE client ${clientId} connected for session ${sessionId}`);
+            console.log(`📊 Total SSE clients for this session: ${sseClients.get(sessionId)?.length || 0}`);
+            console.log(`📊 All active sessions: ${Array.from(sseClients.keys()).join(', ')}`);
           } catch (error) {
             console.error('Error starting SSE stream:', error);
             controller.error(error);
@@ -388,7 +398,14 @@ export async function GET(request: NextRequest) {
           try {
             // Remove client when connection closes
             removeSSEClient(sessionId, clientId);
-            console.log(`SSE client ${clientId} disconnected from session ${sessionId}`);
+            console.log(`🔌 SSE client ${clientId} disconnected from session ${sessionId}`);
+            console.log(`📊 Remaining SSE clients for this session: ${sseClients.get(sessionId)?.length || 0}`);
+            
+            // Clean up empty sessions
+            if (!sseClients.get(sessionId) || sseClients.get(sessionId)!.length === 0) {
+              console.log(`🧹 Cleaning up empty SSE session: ${sessionId}`);
+              sseClients.delete(sessionId);
+            }
           } catch (error) {
             console.error('Error canceling SSE stream:', error);
           }
