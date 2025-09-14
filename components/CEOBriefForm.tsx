@@ -2,6 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Sparkles, FileText, Calendar, Zap, Megaphone } from 'lucide-react';
 
 interface CEOBriefFormData {
   problemStatement: string;
@@ -14,7 +20,7 @@ interface CEOBriefFormProps {
   className?: string;
 }
 
-export default function CEOBriefForm({ onSubmit, className = '' }: CEOBriefFormProps) {
+export default function CEOBriefForm({ onSubmit }: CEOBriefFormProps) {
   const router = useRouter();
   const [formData, setFormData] = useState<CEOBriefFormData>({
     problemStatement: '',
@@ -73,7 +79,7 @@ export default function CEOBriefForm({ onSubmit, className = '' }: CEOBriefFormP
       }
       
       // POST to API
-      const response = await fetch('/api/start-session', {
+      const response = await fetch('/api/agentic-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,143 +99,157 @@ export default function CEOBriefForm({ onSubmit, className = '' }: CEOBriefFormP
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const result = await response.json();
-      
-      if (result.success) {
-        // Navigate to session page with session ID
-        router.push(`/session?id=${result.sessionId}`);
+      const data = await response.json();
+      if (data.success && data.sessionId) {
+        // Navigate to session page with the agentic session ID
+        router.push(`/session?sessionId=${data.sessionId}&type=agentic`);
       } else {
-        throw new Error(result.error || 'Failed to start session');
+        alert(data.error || 'Failed to start agentic session');
       }
-      
     } catch (error) {
       console.error('Error submitting form:', error);
-      // You might want to show an error message to the user here
-      alert('Failed to start session. Please try again.');
+      alert('Failed to start agentic session. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={`max-w-2xl mx-auto ${className}`}>
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Start Your Startup Journey
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Hero Section */}
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium mb-4">
+            <Sparkles className="w-4 h-4" />
+            AI-Powered Startup Planning
+          </div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent mb-4">
+            Transform Your Idea
           </h1>
-          <p className="text-gray-600">
-            Tell us about your idea and we'll create a complete startup kickoff pack
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Get a complete startup kickoff pack in minutes. Our AI agents will create your PRD, timeline, engineering plan, and marketing strategy.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Problem Statement */}
-          <div>
-            <label htmlFor="problemStatement" className="block text-sm font-medium text-gray-700 mb-2">
-              What problem are you solving? *
-            </label>
-            <textarea
-              id="problemStatement"
-              rows={4}
-              value={formData.problemStatement}
-              onChange={(e) => handleInputChange('problemStatement', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                errors.problemStatement ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Describe the problem your startup will solve. Be specific about who faces this problem and why current solutions aren't working..."
-            />
-            {errors.problemStatement && (
-              <p className="mt-1 text-sm text-red-600">{errors.problemStatement}</p>
-            )}
-          </div>
+        <Card className="max-w-2xl mx-auto border-border/50 shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl font-semibold">Start Your Journey</CardTitle>
+            <CardDescription className="text-base">
+              Tell us about your startup idea and let our AI agents do the rest
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
 
-          {/* Target Users */}
-          <div>
-            <label htmlFor="targetUsers" className="block text-sm font-medium text-gray-700 mb-2">
-              Who are your target users? *
-            </label>
-            <textarea
-              id="targetUsers"
-              rows={3}
-              value={formData.targetUsers}
-              onChange={(e) => handleInputChange('targetUsers', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                errors.targetUsers ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Describe your ideal customers. Include demographics, behaviors, pain points, and what motivates them..."
-            />
-            {errors.targetUsers && (
-              <p className="mt-1 text-sm text-red-600">{errors.targetUsers}</p>
-            )}
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Problem Statement */}
+              <div className="space-y-2">
+                <Label htmlFor="problemStatement" className="text-sm font-medium">
+                  What problem are you solving? *
+                </Label>
+                <Textarea
+                  id="problemStatement"
+                  rows={4}
+                  value={formData.problemStatement}
+                  onChange={(e) => handleInputChange('problemStatement', e.target.value)}
+                  className={`resize-none transition-colors ${
+                    errors.problemStatement ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }`}
+                  placeholder="Describe the problem your startup will solve. Be specific about who faces this problem and why current solutions aren't working..."
+                />
+                {errors.problemStatement && (
+                  <p className="text-sm text-destructive">{errors.problemStatement}</p>
+                )}
+              </div>
 
-          {/* Key Feature Idea */}
-          <div>
-            <label htmlFor="keyFeatureIdea" className="block text-sm font-medium text-gray-700 mb-2">
-              What's your key feature idea? *
-            </label>
-            <textarea
-              id="keyFeatureIdea"
-              rows={3}
-              value={formData.keyFeatureIdea}
-              onChange={(e) => handleInputChange('keyFeatureIdea', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                errors.keyFeatureIdea ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Describe your main feature or solution. What makes it unique? How will it solve the problem you identified..."
-            />
-            {errors.keyFeatureIdea && (
-              <p className="mt-1 text-sm text-red-600">{errors.keyFeatureIdea}</p>
-            )}
-          </div>
+              {/* Target Users */}
+              <div className="space-y-2">
+                <Label htmlFor="targetUsers" className="text-sm font-medium">
+                  Who are your target users? *
+                </Label>
+                <Textarea
+                  id="targetUsers"
+                  rows={3}
+                  value={formData.targetUsers}
+                  onChange={(e) => handleInputChange('targetUsers', e.target.value)}
+                  className={`resize-none transition-colors ${
+                    errors.targetUsers ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }`}
+                  placeholder="Describe your ideal customers. Include demographics, behaviors, pain points, and what motivates them..."
+                />
+                {errors.targetUsers && (
+                  <p className="text-sm text-destructive">{errors.targetUsers}</p>
+                )}
+              </div>
 
-          {/* Submit Button */}
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating Your Startup Pack...
+              {/* Key Feature Idea */}
+              <div className="space-y-2">
+                <Label htmlFor="keyFeatureIdea" className="text-sm font-medium">
+                  What&apos;s your key feature idea? *
+                </Label>
+                <Textarea
+                  id="keyFeatureIdea"
+                  rows={3}
+                  value={formData.keyFeatureIdea}
+                  onChange={(e) => handleInputChange('keyFeatureIdea', e.target.value)}
+                  className={`resize-none transition-colors ${
+                    errors.keyFeatureIdea ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }`}
+                  placeholder="Describe your main feature or solution. What makes it unique? How will it solve the problem you identified..."
+                />
+                {errors.keyFeatureIdea && (
+                  <p className="text-sm text-destructive">{errors.keyFeatureIdea}</p>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-6">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  size="lg"
+                  className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 transition-all duration-200"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating Your Startup Pack...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Generate My Startup Pack
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+
+            {/* What You'll Get */}
+            <div className="mt-8 pt-6 border-t border-border/50">
+              <div className="text-center mb-4">
+                <p className="text-sm font-medium text-muted-foreground mb-4">Your startup pack will include:</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Badge variant="secondary" className="justify-center py-2 px-3">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Product Requirements
+                  </Badge>
+                  <Badge variant="secondary" className="justify-center py-2 px-3">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Project Timeline
+                  </Badge>
+                  <Badge variant="secondary" className="justify-center py-2 px-3">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Engineering Plan
+                  </Badge>
+                  <Badge variant="secondary" className="justify-center py-2 px-3">
+                    <Megaphone classNme="w-4 h-4 mr-2" />
+                    Marketing Strategy
+                  </Badge>
                 </div>
-              ) : (
-                'Generate My Startup Pack'
-              )}
-            </button>
-          </div>
-        </form>
-
-        {/* Additional Info */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="text-center text-sm text-gray-600">
-            <p className="mb-2">🚀 Your startup pack will include:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center justify-center space-x-1">
-                <span>📋</span>
-                <span>Product Requirements</span>
-              </div>
-              <div className="flex items-center justify-center space-x-1">
-                <span>📅</span>
-                <span>Project Timeline</span>
-              </div>
-              <div className="flex items-center justify-center space-x-1">
-                <span>⚡</span>
-                <span>Engineering Plan</span>
-              </div>
-              <div className="flex items-center justify-center space-x-1">
-                <span>📢</span>
-                <span>Marketing Strategy</span>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

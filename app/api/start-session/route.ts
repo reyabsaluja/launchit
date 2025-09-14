@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runConversation, ConversationResult, ConversationMessage, Artifact } from '@/lib/orchestrator';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { validateCohereApiKey } from '@/lib/cohere';
 
 // Enhanced session data structure
@@ -19,6 +21,34 @@ interface SessionData {
 
 // In-memory storage for conversation sessions
 const conversationSessions = new Map<string, SessionData>();
+
+// File-based session storage for persistence
+const SESSIONS_DIR = join(process.cwd(), '.sessions');
+if (!existsSync(SESSIONS_DIR)) {
+  mkdirSync(SESSIONS_DIR, { recursive: true });
+}
+
+function saveSessionToFile(sessionId: string, sessionData: SessionData) {
+  try {
+    const filePath = join(SESSIONS_DIR, `${sessionId}.json`);
+    writeFileSync(filePath, JSON.stringify(sessionData, null, 2));
+  } catch (error) {
+    console.error('Error saving session to file:', error);
+  }
+}
+
+function loadSessionFromFile(sessionId: string): SessionData | undefined {
+  try {
+    const filePath = join(SESSIONS_DIR, `${sessionId}.json`);
+    if (existsSync(filePath)) {
+      const data = readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading session from file:', error);
+  }
+  return undefined;
+}
 
 // Types for API request/response
 interface StartSessionRequest {
@@ -53,30 +83,37 @@ interface StartSessionResponse {
 }
 
 // Validate request body
-function validateRequestBody(body: any): { isValid: boolean; errors: string[] } {
+function validateRequestBody(body: unknown): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
   
-  if (!body.companyName || typeof body.companyName !== 'string') {
+  if (!body || typeof body !== 'object') {
+    errors.push('Request body must be an object');
+    return { isValid: false, errors };
+  }
+  
+  const data = body as Record<string, unknown>;
+  
+  if (!data.companyName || typeof data.companyName !== 'string') {
     errors.push('companyName is required and must be a string');
   }
   
-  if (!body.industry || typeof body.industry !== 'string') {
+  if (!data.industry || typeof data.industry !== 'string') {
     errors.push('industry is required and must be a string');
   }
   
-  if (!body.problemStatement || typeof body.problemStatement !== 'string') {
+  if (!data.problemStatement || typeof data.problemStatement !== 'string') {
     errors.push('problemStatement is required and must be a string');
   }
   
-  if (!body.targetUsers || typeof body.targetUsers !== 'string') {
+  if (!data.targetUsers || typeof data.targetUsers !== 'string') {
     errors.push('targetUsers is required and must be a string');
   }
   
-  if (!body.timeline || typeof body.timeline !== 'string') {
+  if (!data.timeline || typeof data.timeline !== 'string') {
     errors.push('timeline is required and must be a string');
   }
   
-  if (!body.budget || typeof body.budget !== 'string') {
+  if (!data.budget || typeof data.budget !== 'string') {
     errors.push('budget is required and must be a string');
   }
   
@@ -108,7 +145,7 @@ export async function POST(request: NextRequest) {
     let body: StartSessionRequest;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         {
           success: false,
@@ -161,7 +198,12 @@ export async function POST(request: NextRequest) {
       }
     };
     
+    // Store in both memory and file for persistence
     conversationSessions.set(sessionId, sessionData);
+    saveSessionToFile(sessionId, sessionData);
+    
+    console.log(`Stored session ${sessionId} in memory and file. Total sessions: ${conversationSessions.size}`);
+    console.log(`All session IDs: ${Array.from(conversationSessions.keys()).join(', ')}`);
 
     console.log(`Session ${sessionId} completed successfully`);
     console.log(`Generated ${conversationResult.summary.totalMessages} messages and ${conversationResult.summary.totalArtifacts} artifacts`);
@@ -206,9 +248,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const session = conversationSessions.get(sessionId);
+    console.log(`GET request for sessionId: ${sessionId}`);
+    console.log(`Available sessions in memory: ${Array.from(conversationSessions.keys()).join(', ')}`);
+    
+    // Try to get from memory first, then from file
+    let session = conversationSessions.get(sessionId);
     
     if (!session) {
+      console.log(`Session ${sessionId} not found in memory, trying file...`);
+      session = loadSessionFromFile(sessionId);
+      
+      if (session) {
+        // Load back into memory for future requests
+        conversationSessions.set(sessionId, session);
+        console.log(`Session ${sessionId} loaded from file and cached in memory`);
+      }
+    }
+    
+    if (!session) {
+      console.log(`Session ${sessionId} not found in memory or file. Available sessions:`, Array.from(conversationSessions.keys()));
       return NextResponse.json(
         {
           success: false,

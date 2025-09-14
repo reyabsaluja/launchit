@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ConversationMessage } from "@/lib/orchestrator";
 
 // Agent configuration for styling
@@ -9,32 +9,32 @@ const agentConfig = {
     name: "Alex Chen",
     role: "Product Manager",
     color: "bg-blue-500",
-    textColor: "text-blue-700",
-    bgColor: "bg-blue-50",
+    textColor: "text-blue-300",
+    bgColor: "bg-blue-950/50",
     icon: "👤"
   },
   senior_engineer: {
     name: "Jordan Kim", 
     role: "Senior Engineer",
     color: "bg-green-500",
-    textColor: "text-green-700",
-    bgColor: "bg-green-50",
+    textColor: "text-green-300",
+    bgColor: "bg-green-950/50",
     icon: "⚡"
   },
   project_manager: {
     name: "Sam Taylor",
     role: "Project Manager", 
     color: "bg-orange-500",
-    textColor: "text-orange-700",
-    bgColor: "bg-orange-50",
+    textColor: "text-orange-300",
+    bgColor: "bg-orange-950/50",
     icon: "📋"
   },
   marketing_lead: {
     name: "Riley Morgan",
     role: "Marketing Lead",
     color: "bg-purple-500", 
-    textColor: "text-purple-700",
-    bgColor: "bg-purple-50",
+    textColor: "text-purple-300",
+    bgColor: "bg-purple-950/50",
     icon: "📢"
   }
 };
@@ -76,13 +76,13 @@ function MessageBubble({ message }: MessageBubbleProps) {
       <div className="flex-1 min-w-0">
         {/* Header */}
         <div className="flex items-center space-x-2 mb-1">
-          <span className="font-semibold text-gray-900 text-sm">
+          <span className="font-semibold text-foreground text-sm">
             {agent.name}
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${agent.bgColor} ${agent.textColor} font-medium`}>
             {agent.role}
           </span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-muted-foreground">
             {formatTimestamp(message.timestamp)}
           </span>
           {message.hasArtifact && (
@@ -93,8 +93,8 @@ function MessageBubble({ message }: MessageBubbleProps) {
         </div>
         
         {/* Message Bubble */}
-        <div className={`rounded-lg p-3 ${agent.bgColor} border border-gray-100`}>
-          <div className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+        <div className={`rounded-lg p-3 ${agent.bgColor} border border-border`}>
+          <div className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
             {message.content}
           </div>
         </div>
@@ -106,26 +106,26 @@ function MessageBubble({ message }: MessageBubbleProps) {
 function LoadingIndicator() {
   return (
     <div className="flex items-start space-x-3 mb-6">
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-300 flex items-center justify-center animate-pulse">
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-muted flex items-center justify-center animate-pulse">
         <span className="text-lg">💭</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center space-x-2 mb-1">
-          <span className="font-semibold text-gray-500 text-sm">
+          <span className="font-semibold text-muted-foreground text-sm">
             AI Agents
           </span>
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
             Collaborating
           </span>
         </div>
-        <div className="rounded-lg p-3 bg-gray-50 border border-gray-100">
+        <div className="rounded-lg p-3 bg-muted/50 border border-border">
           <div className="flex items-center space-x-2">
             <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
             </div>
-            <span className="text-sm text-gray-600 italic">
+            <span className="text-sm text-muted-foreground italic">
               Agents are discussing your project...
             </span>
           </div>
@@ -138,13 +138,13 @@ function LoadingIndicator() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-64 text-center">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
         <span className="text-2xl">💬</span>
       </div>
-      <h3 className="text-lg font-medium text-gray-900 mb-2">
+      <h3 className="text-lg font-medium text-foreground mb-2">
         Ready for Agent Discussion
       </h3>
-      <p className="text-gray-600 max-w-sm">
+      <p className="text-muted-foreground max-w-sm">
         Your AI team is ready to collaborate on your startup plan. Start a session to begin the conversation.
       </p>
     </div>
@@ -155,15 +155,15 @@ export default function ChatWindow({ messages, isLoading = false, className = ""
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (shouldAutoScroll) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  };
+  }, [shouldAutoScroll]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, scrollToBottom]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -172,15 +172,15 @@ export default function ChatWindow({ messages, isLoading = false, className = ""
   };
 
   return (
-    <div className={`flex flex-col h-full bg-white ${className}`}>
+    <div className={`flex flex-col h-full bg-card ${className}`}>
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-muted/30">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-foreground">
               Agent Planning Session
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               {messages.length > 0 
                 ? `${messages.length} messages from your AI team`
                 : "Your AI agents are ready to collaborate"
@@ -200,7 +200,7 @@ export default function ChatWindow({ messages, isLoading = false, className = ""
                 >
                   <span>{agent.icon}</span>
                   {hasParticipated && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-card"></div>
                   )}
                 </div>
               );
@@ -237,7 +237,7 @@ export default function ChatWindow({ messages, isLoading = false, className = ""
               setShouldAutoScroll(true);
               scrollToBottom();
             }}
-            className="w-full text-center text-sm text-blue-600 hover:text-blue-800 py-2 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+            className="w-full text-center text-sm text-primary hover:text-primary/80 py-2 bg-primary/10 rounded-lg border border-primary/20 hover:bg-primary/20 transition-colors"
           >
             ↓ Scroll to latest messages
           </button>

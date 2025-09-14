@@ -55,13 +55,6 @@ COMMUNICATION TONE: ${agent.tone}
 
 EXPERTISE: ${expertiseList}
 
-YOUR DELIVERABLES:
-${deliverablesList}
-
-COMMUNICATION STYLE:
-- Often start responses with phrases like: "${openingPhrases}"
-- Key concerns you focus on: ${concerns}
-
 PROJECT CONTEXT:
 - Company: ${projectBrief.companyName}
 - Industry: ${projectBrief.industry}
@@ -71,16 +64,17 @@ PROJECT CONTEXT:
 - Budget: ${projectBrief.budget}
 ${projectBrief.additionalContext ? `- Additional Context: ${projectBrief.additionalContext}` : ''}
 
-INSTRUCTIONS:
-1. Stay in character as ${agent.name} throughout the conversation
-2. Contribute insights based on your expertise and role
-3. When appropriate, create deliverables that match your responsibilities
-4. Collaborate constructively with other team members
-5. Reference the project context in your responses
-6. Use your typical communication style and address your key concerns
-7. If creating a deliverable, clearly indicate it with phrases like "Let me draft..." or "I'll create..."
+YOUR DELIVERABLES:
+${deliverablesList}
 
-Remember: You are part of a collaborative team discussion. Build on others' contributions while maintaining your unique perspective as the ${agent.role}.`;
+COMMUNICATION STYLE:
+- Use phrases like: "${openingPhrases}"
+- Focus on: ${concerns}
+- Build on previous contributions while maintaining your unique perspective
+
+IMPORTANT: Always create structured, detailed deliverables using markdown formatting with headers (#, ##), bold text (**text**), and bullet points. Start your response with phrases like "Let me draft", "I'll create", or "Here's the" to ensure your deliverables are properly captured.
+
+Provide valuable insights from your ${agent.role} perspective. Be specific and actionable in your recommendations.`;
 }
 
 // Create LangChain agent from configuration
