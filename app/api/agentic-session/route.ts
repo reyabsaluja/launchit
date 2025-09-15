@@ -32,7 +32,7 @@ if (!existsSync(SESSIONS_DIR)) {
 
 function saveAgenticSessionToFile(sessionId: string, sessionData: AgenticSessionData) {
   try {
-    const filePath = join(SESSIONS_DIR, `agentic_${sessionId}.json`);
+    const filePath = join(SESSIONS_DIR, `${sessionId}.json`);
     writeFileSync(filePath, JSON.stringify(sessionData, null, 2));
   } catch (error) {
     console.error('Error saving agentic session to file:', error);
@@ -41,7 +41,15 @@ function saveAgenticSessionToFile(sessionId: string, sessionData: AgenticSession
 
 function loadAgenticSessionFromFile(sessionId: string): AgenticSessionData | undefined {
   try {
-    const filePath = join(SESSIONS_DIR, `agentic_${sessionId}.json`);
+    // Try the correct filename first
+    let filePath = join(SESSIONS_DIR, `${sessionId}.json`);
+    if (existsSync(filePath)) {
+      const data = readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    }
+    
+    // Fallback: try the old double "agentic_" prefix
+    filePath = join(SESSIONS_DIR, `agentic_${sessionId}.json`);
     if (existsSync(filePath)) {
       const data = readFileSync(filePath, 'utf-8');
       return JSON.parse(data);
@@ -111,15 +119,22 @@ function broadcastToSSEClients(sessionId: string, data: any) {
     const message = `data: ${JSON.stringify(data)}\n\n`;
     console.log(`Broadcasting to ${clients.length} SSE clients for session ${sessionId}:`, data.type);
     
-    clients.forEach((client, index) => {
+    // Filter out failed clients while broadcasting
+    const activeClients = clients.filter(client => {
       try {
         client.controller.enqueue(new TextEncoder().encode(message));
+        return true; // Keep this client
       } catch (error) {
-        console.error(`Error sending SSE message to client ${index}:`, error);
-        // Remove failed client
-        removeSSEClient(sessionId, client.id);
+        console.error(`Error sending SSE message to client ${client.id}:`, error);
+        return false; // Remove this client
       }
     });
+    
+    // Update the clients list to remove failed ones
+    if (activeClients.length !== clients.length) {
+      console.log(`🧹 Removed ${clients.length - activeClients.length} failed SSE clients`);
+      sseClients.set(sessionId, activeClients);
+    }
   } else {
     console.log(`No SSE clients found for session ${sessionId}`);
   }
@@ -252,10 +267,10 @@ export async function POST(request: NextRequest) {
     agenticSessions.set(sessionId, sessionData);
     saveAgenticSessionToFile(sessionId, sessionData);
 
-    // Start the agentic conversation in the background with a delay
-    // to ensure frontend SSE connection is established
-    setTimeout(() => {
-      console.log(`🎬 Starting conversation for session ${sessionId} after delay`);
+    // Start the agentic conversation in the background
+    // Wait for SSE connection or timeout after 5 seconds
+    const startConversation = () => {
+      console.log(`🎬 Starting conversation for session ${sessionId}`);
       console.log(`📊 SSE clients connected: ${sseClients.get(sessionId)?.length || 0}`);
       
       runAgenticConversation(
@@ -321,8 +336,35 @@ export async function POST(request: NextRequest) {
         type: 'error',
         error: error.message
       });
-    });
-    }, 3000); // 3 second delay to allow frontend to connect
+        });
+    };
+    
+    // Smart delay: Wait for SSE connection or timeout
+    let conversationStarted = false;
+    const checkAndStart = () => {
+      if (conversationStarted) return;
+      
+      const hasSSEClients = sseClients.get(sessionId) && sseClients.get(sessionId)!.length > 0;
+      if (hasSSEClients) {
+        console.log(`✅ SSE client connected, starting conversation immediately`);
+        conversationStarted = true;
+        startConversation();
+      }
+    };
+    
+    // Check immediately and then every 500ms for SSE connection
+    checkAndStart();
+    const checkInterval = setInterval(checkAndStart, 500);
+    
+    // Timeout after 5 seconds regardless of SSE connection
+    setTimeout(() => {
+      if (!conversationStarted) {
+        console.log(`⏰ Timeout reached, starting conversation without SSE connection`);
+        conversationStarted = true;
+        clearInterval(checkInterval);
+        startConversation();
+      }
+    }, 5000);
 
     // Return initial response
     return NextResponse.json({
@@ -389,6 +431,40 @@ export async function GET(request: NextRequest) {
             console.log(`🔗 SSE client ${clientId} connected for session ${sessionId}`);
             console.log(`📊 Total SSE clients for this session: ${sseClients.get(sessionId)?.length || 0}`);
             console.log(`📊 All active sessions: ${Array.from(sseClients.keys()).join(', ')}`);
+            
+            // Trigger conversation start check for this session
+            // This will be handled by the smart delay logic in the POST method
+            
+            // Send initial session data if available
+            const session = agenticSessions.get(sessionId);
+            if (session && session.conversationResult.messages.length > 0) {
+              console.log(`📤 Sending ${session.conversationResult.messages.length} existing messages to new client`);
+              session.conversationResult.messages.forEach(message => {
+                const messageData = `data: ${JSON.stringify({ type: 'message', message })}\n\n`;
+                controller.enqueue(new TextEncoder().encode(messageData));
+              });
+            }
+            
+            // Set up keep-alive ping every 30 seconds
+            const keepAliveInterval = setInterval(() => {
+              try {
+                const pingMessage = `data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`;
+                controller.enqueue(new TextEncoder().encode(pingMessage));
+                console.log(`💓 Keep-alive ping sent to client ${clientId}`);
+              } catch (error) {
+                console.error('Error sending keep-alive ping:', error);
+                clearInterval(keepAliveInterval);
+              }
+            }, 30000);
+            
+            // Store the interval for cleanup
+            const clients = sseClients.get(sessionId);
+            if (clients) {
+              const client = clients.find(c => c.id === clientId);
+              if (client) {
+                (client as any).keepAliveInterval = keepAliveInterval;
+              }
+            }
           } catch (error) {
             console.error('Error starting SSE stream:', error);
             controller.error(error);
@@ -396,6 +472,15 @@ export async function GET(request: NextRequest) {
         },
         cancel() {
           try {
+            // Clean up keep-alive interval
+            const clients = sseClients.get(sessionId);
+            if (clients) {
+              const client = clients.find(c => c.id === clientId);
+              if (client && (client as any).keepAliveInterval) {
+                clearInterval((client as any).keepAliveInterval);
+              }
+            }
+            
             // Remove client when connection closes
             removeSSEClient(sessionId, clientId);
             console.log(`🔌 SSE client ${clientId} disconnected from session ${sessionId}`);

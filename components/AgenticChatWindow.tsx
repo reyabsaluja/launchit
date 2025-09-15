@@ -259,7 +259,7 @@ export default function AgenticChatWindow({
     }
   }, [shouldAutoScroll]);
 
-  // Set up Server-Sent Events for real-time updates
+  // Set up Server-Sent Events for real-time updates with polling fallback
   useEffect(() => {
     if (!sessionId) {
       console.log('No sessionId provided, skipping SSE setup');
@@ -271,6 +271,32 @@ export default function AgenticChatWindow({
     
     let eventSource: EventSource | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
+    let pollingInterval: NodeJS.Timeout | null = null;
+    let lastMessageCount = 0;
+    let sseFailed = false;
+    
+    // Polling fallback function
+    const startPolling = () => {
+      console.log('🔄 Starting polling fallback');
+      pollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/agentic-session?sessionId=${sessionId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data.messages) {
+              const currentMessageCount = data.data.messages.length;
+              if (currentMessageCount > lastMessageCount) {
+                console.log(`📊 Polling: Found ${currentMessageCount - lastMessageCount} new messages`);
+                setRealtimeMessages(data.data.messages);
+                lastMessageCount = currentMessageCount;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Polling error:', error);
+        }
+      }, 2000); // Poll every 2 seconds
+    };
     
     const setupSSE = () => {
       try {
@@ -279,10 +305,19 @@ export default function AgenticChatWindow({
         eventSource.onopen = () => {
           console.log('✅ SSE connection opened successfully');
           setConnectionStatus('connected');
+          sseFailed = false;
+          
           // Clear any pending reconnect attempts
           if (reconnectTimeout) {
             clearTimeout(reconnectTimeout);
             reconnectTimeout = null;
+          }
+          
+          // Stop polling if SSE is working
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+            console.log('🛑 Stopped polling, SSE is active');
           }
         };
         
@@ -307,12 +342,17 @@ export default function AgenticChatWindow({
                 }
                 const newMessages = [...prev, data.message];
                 console.log(`📊 Total messages now: ${newMessages.length}`);
+                lastMessageCount = newMessages.length;
                 return newMessages;
               });
             } else if (data.type === 'complete') {
               console.log('✅ Agentic conversation completed');
               setConnectionStatus('disconnected');
-              // Don't force reload, just update the UI state
+              // Stop polling when complete
+              if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+              }
             } else if (data.type === 'error') {
               console.error('❌ Agentic conversation error:', data.error);
               setConnectionStatus('disconnected');
@@ -327,10 +367,16 @@ export default function AgenticChatWindow({
         eventSource.onerror = (error) => {
           console.error('❌ SSE connection error:', error, 'ReadyState:', eventSource?.readyState);
           setConnectionStatus('disconnected');
+          sseFailed = true;
           
           // Close the current connection
           if (eventSource) {
             eventSource.close();
+          }
+          
+          // Start polling fallback immediately
+          if (!pollingInterval) {
+            startPolling();
           }
           
           // Attempt to reconnect after a delay
@@ -339,21 +385,38 @@ export default function AgenticChatWindow({
               console.log('🔄 Attempting to reconnect SSE...');
               setConnectionStatus('connecting');
               setupSSE();
-            }, 3000);
+            }, 2000); // Reduced delay for faster reconnection
           }
         };
       } catch (error) {
         console.error('❌ Error setting up SSE:', error);
         setConnectionStatus('disconnected');
+        sseFailed = true;
+        
+        // Start polling fallback
+        if (!pollingInterval) {
+          startPolling();
+        }
       }
     };
     
+    // Start with SSE
     setupSSE();
     
+    // Also start polling as backup (will be stopped if SSE works)
+    setTimeout(() => {
+      if (sseFailed || !eventSource || eventSource.readyState !== EventSource.OPEN) {
+        startPolling();
+      }
+    }, 5000); // Start polling after 5 seconds if SSE hasn't connected
+    
     return () => {
-      console.log('🔌 Cleaning up SSE connection');
+      console.log('🔌 Cleaning up SSE connection and polling');
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
       }
       if (eventSource) {
         eventSource.close();
